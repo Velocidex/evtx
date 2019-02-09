@@ -18,6 +18,7 @@ package evtx
 import (
 	"bytes"
 	"encoding/binary"
+	"strings"
 
 	"fmt"
 	"io"
@@ -134,7 +135,7 @@ func (self *Chunk) Parse(start_record_id int) ([]interface{}, error) {
 	ctx.buff = buf
 	ctx.offset = EVTX_CHUNK_HEADER_SIZE
 
-	for i := self.Header.FirstEventRecNumber; i < self.Header.LastEventRecNumber; i++ {
+	for i := self.Header.FirstEventRecNumber; i <= self.Header.LastEventRecNumber; i++ {
 		start_of_record := ctx.Offset()
 		record, err := NewEventRecord(ctx, self)
 		if err != nil {
@@ -579,6 +580,9 @@ func ParseTemplateInstance(ctx *ParseContext) bool {
 
 	for idx, arg := range args {
 		switch arg.argType {
+		case 0x00:
+			ctx.SkipBytes(arg.argLen)
+
 		case 0x01: // String
 			arg_values[idx] = string(UTF16LEToUTF8(ctx.ConsumeBytes(arg.argLen)))
 		case 0x04: // uint8_t
@@ -587,7 +591,7 @@ func ParseTemplateInstance(ctx *ParseContext) bool {
 			arg_values[idx] = ctx.ConsumeUint16()
 		case 0x08: // uint32_t
 			arg_values[idx] = ctx.ConsumeUint32()
-		case 0x0A: // uint32_t
+		case 0x0A: // uint64_t
 			arg_values[idx] = ctx.ConsumeUint64()
 		case 0xe: // binary
 			arg_values[idx] = ctx.ConsumeBytes(arg.argLen)
@@ -631,8 +635,19 @@ func ParseTemplateInstance(ctx *ParseContext) bool {
 			ctx.SkipBytes(arg.argLen)
 
 			arg_values[idx] = new_ctx.CurrentTemplate().Expand(nil)
+
+		case 0x27, 0x28:
+			arg_values[idx] = string(ctx.ConsumeBytes(arg.argLen))
+
+		case 0x81: // List of UTF16 String
+			arg_values[idx] = strings.Split(
+				string(UTF16LEToUTF8(ctx.ConsumeBytes(arg.argLen))),
+				"\x00")
+
 		default:
-			ctx.SkipBytes(arg.argLen)
+			unknown := ctx.ConsumeBytes(arg.argLen)
+			debug("I dont know how to handle %v (%v)\n", arg, unknown)
+			arg_values[idx] = strings.TrimRight(string(unknown), "\x00")
 		}
 
 		debug("%v Arg type %x len %x - %v\n",
@@ -736,7 +751,8 @@ func GetChunks(fd io.ReadSeeker) ([]*Chunk, error) {
 			continue
 		}
 
-		if string(chunk.Header.Magic[:]) != EVTX_CHUNK_HEADER_MAGIC {
+		if string(chunk.Header.Magic[:]) != EVTX_CHUNK_HEADER_MAGIC ||
+			chunk.Header.LastEventRecID == 0xffffffffffffffff {
 			continue
 		}
 		result = append(result, chunk)
