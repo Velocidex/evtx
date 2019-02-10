@@ -77,14 +77,14 @@ type EventRecordHeader struct {
 
 type EventRecord struct {
 	Header EventRecordHeader
-	event  string
+	Event  interface{}
 }
 
-func (self *EventRecord) Parse(ctx *ParseContext) interface{} {
+func (self *EventRecord) Parse(ctx *ParseContext) {
 	template := ctx.NewTemplate(0)
 	ParseBinXML(ctx)
 
-	return template.Expand(nil)
+	self.Event = template.Expand(nil)
 }
 
 func NewEventRecord(ctx *ParseContext, chunk *Chunk) (*EventRecord, error) {
@@ -117,8 +117,8 @@ type Chunk struct {
 	Fd     io.ReadSeeker
 }
 
-func (self *Chunk) Parse(start_record_id int) ([]interface{}, error) {
-	result := []interface{}{}
+func (self *Chunk) Parse(start_record_id int) ([]*EventRecord, error) {
+	result := []*EventRecord{}
 	buf := make([]byte, EVTX_CHUNK_SIZE)
 	_, err := self.Fd.Seek(self.Offset, os.SEEK_SET)
 	if err != nil {
@@ -144,9 +144,9 @@ func (self *Chunk) Parse(start_record_id int) ([]interface{}, error) {
 
 		// We have to parse all the records in case they
 		// define templates we need.
-		event := record.Parse(ctx)
+		record.Parse(ctx)
 		if int(record.Header.RecordID) >= start_record_id {
-			result = append(result, event)
+			result = append(result, record)
 		}
 
 		ctx.SetOffset(start_of_record + int(record.Header.Size))
@@ -814,6 +814,6 @@ func readStructFromFile(fd io.ReadSeeker, offset int64, obj interface{}) error {
 	return nil
 }
 
-func filetimeToUnixtime(ft uint64) uint64 {
-	return (ft - 11644473600000*10000) / 10000000
+func filetimeToUnixtime(ft uint64) float64 {
+	return (float64(ft) - 11644473600000*10000) / 10000000
 }

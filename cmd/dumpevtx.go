@@ -101,13 +101,13 @@ func doWatch() {
 
 				// Display the records as json.
 				for _, i := range records {
-					serialized, _ := json.MarshalIndent(i, " ", " ")
+					serialized, _ := json.MarshalIndent(i.Event, " ", " ")
 					fmt.Println(string(serialized))
-				}
-			}
 
-			if end_of_chunk > new_max_record_id {
-				new_max_record_id = chunk.Header.LastEventRecID
+					if i.Header.RecordID > new_max_record_id {
+						new_max_record_id = i.Header.RecordID
+					}
+				}
 			}
 		}
 
