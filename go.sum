@@ -31,3 +31,5 @@ www.velocidex.com/golang/go-pe v0.1.0 h1:W5oYsEMz1GiBv84CyZzOzTHjLaGLv8oTaDfrRkc
 www.velocidex.com/golang/go-pe v0.1.0/go.mod h1:BBNxoooAx/LA/F9rn3QliOCR2FtiDccxX3MVsJ4OX2g=
 www.velocidex.com/golang/go-pe v0.1.1-0.20191103072535-27623178f3fb h1:CCyqv+t0R2OzjLGXuNkhCCCTVqv9/rZbvh0KhjYa4TM=
 www.velocidex.com/golang/go-pe v0.1.1-0.20191103072535-27623178f3fb/go.mod h1:vpdQNvh2GfQT5NNhtpyGirOSYGTy2IJheePUBpP/zHs=
+www.velocidex.com/golang/go-pe v0.1.1-0.20191103232346-ac12e8190bb6 h1:t+4cuel1gs9H854UvXSVwL/Ph7wAhGUq8xNEiEuG7x4=
+www.velocidex.com/golang/go-pe v0.1.1-0.20191103232346-ac12e8190bb6/go.mod h1:vpdQNvh2GfQT5NNhtpyGirOSYGTy2IJheePUBpP/zHs=
