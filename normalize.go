@@ -15,6 +15,10 @@
 */
 package evtx
 
+import (
+	"github.com/Velocidex/ordereddict"
+)
+
 // EVTX is in XML but this is hard for us to query. So we try to
 // normalize some common XML patterns into something which is easier
 // to work with.
@@ -27,7 +31,7 @@ package evtx
    <Data name="Thing3"> %Subst% </Data>
 </Eventdata>
 
-We convert it to json like this:
+Which converts to json like this:
 
 "Eventdata": {
     "Data": [
@@ -52,26 +56,33 @@ to convert it to:
 
 "EventData": {
    "Thing1": %Subst,
-   "Thing1": %Subst,
-   "Thing1": %Subst,
+   "Thing2": %Subst,
+   "Thing3": %Subst,
 }
+
+However we need to keep the order so we can properly interpolate it
+into the message template.  We use a very simple OrdereDict for
+this. We rely on the MarshalJSON of the ordereddict to ensure the keys
+in the JSON are ordered in Event order (otherwise interpolation into
+the message will fail).
+
 */
 
 func NormalizeEventData(expanded interface{}) {
-	data, ok := expanded.(map[string]interface{})
+	data, ok := expanded.(*ordereddict.Dict)
 	if !ok {
 		return
 	}
-	event_data, pres := data["EventData"]
+	event_data, pres := data.Get("EventData")
 	if !pres {
 		return
 	}
-	event_data_map, ok := event_data.(map[string]interface{})
+	event_data_map, ok := event_data.(*ordereddict.Dict)
 	if !ok {
 		return
 	}
 
-	data_tag, pres := event_data_map["Data"]
+	data_tag, pres := event_data_map.Get("Data")
 	if !pres {
 		return
 	}
@@ -81,15 +92,15 @@ func NormalizeEventData(expanded interface{}) {
 		return
 	}
 
-	result := make(map[string]interface{})
+	result := ordereddict.NewDict()
 	for _, item := range data_array {
-		item_map, ok := item.(map[string]interface{})
+		item_map, ok := item.(*ordereddict.Dict)
 		if !ok {
 			return
 		}
 
 		// Look for name and "" pairs.
-		name_any, pres := item_map["Name"]
+		name_any, pres := item_map.Get("Name")
 		if !pres {
 			return
 		}
@@ -99,12 +110,12 @@ func NormalizeEventData(expanded interface{}) {
 			return
 		}
 
-		value, pres := item_map["Value"]
+		value, pres := item_map.Get("Value")
 		if !pres {
 			return
 		}
-		result[name] = value
+		result.Set(name, value)
 	}
 
-	data["EventData"] = result
+	data.Set("EventData", result)
 }
