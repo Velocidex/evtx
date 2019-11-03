@@ -15,6 +15,10 @@
 */
 package evtx
 
+import (
+	"github.com/Velocidex/ordereddict"
+)
+
 // EVTX is in XML but this is hard for us to query. So we try to
 // normalize some common XML patterns into something which is easier
 // to work with.
@@ -27,7 +31,7 @@ package evtx
    <Data name="Thing3"> %Subst% </Data>
 </Eventdata>
 
-We convert it to json like this:
+Which converts to json like this:
 
 "Eventdata": {
     "Data": [
@@ -52,9 +56,16 @@ to convert it to:
 
 "EventData": {
    "Thing1": %Subst,
-   "Thing1": %Subst,
-   "Thing1": %Subst,
+   "Thing2": %Subst,
+   "Thing3": %Subst,
 }
+
+However we need to keep the order so we can properly interpolate it
+into the message template.  We use a very simple OrdereDict for
+this. We rely on the MarshalJSON of the ordereddict to ensure the keys
+in the JSON are ordered in Event order (otherwise interpolation into
+the message will fail).
+
 */
 
 func NormalizeEventData(expanded interface{}) {
@@ -81,7 +92,7 @@ func NormalizeEventData(expanded interface{}) {
 		return
 	}
 
-	result := make(map[string]interface{})
+	result := ordereddict.NewDict()
 	for _, item := range data_array {
 		item_map, ok := item.(map[string]interface{})
 		if !ok {
@@ -103,7 +114,7 @@ func NormalizeEventData(expanded interface{}) {
 		if !pres {
 			return
 		}
-		result[name] = value
+		result.Set(name, value)
 	}
 
 	data["EventData"] = result
