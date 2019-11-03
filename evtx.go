@@ -25,6 +25,7 @@ import (
 	"os"
 	"unicode/utf16"
 
+	"github.com/Velocidex/ordereddict"
 	errors "github.com/pkg/errors"
 )
 
@@ -170,34 +171,36 @@ type TemplateNode struct {
 	Type        uint32
 	Literal     interface{}
 	NestedArray []*TemplateNode
-	NestedDict  map[string]*TemplateNode
+	NestedDict  *ordereddict.Dict //map[string]*TemplateNode
 
 	CurrentKey string
 }
 
 func (self *TemplateNode) Expand(args map[int]interface{}) interface{} {
 	if self.NestedDict != nil {
-		result := make(map[string]interface{})
-		for k, v := range self.NestedDict {
-			expanded := v.Expand(args)
+		result := ordereddict.NewDict()
+		for _, k := range self.NestedDict.Keys() {
+			v, _ := self.NestedDict.Get(k)
+			expanded := v.(*TemplateNode).Expand(args)
 			if k == "" {
 				k = "Value"
-				if len(self.NestedDict) == 1 {
+				if self.NestedDict.Len() == 1 {
 					return expanded
 				}
 
-				expanded_dict, ok := expanded.(map[string]interface{})
+				expanded_dict, ok := expanded.(*ordereddict.Dict)
 				if ok {
-					for k, v := range expanded_dict {
+					for _, k := range expanded_dict.Keys() {
+						v, _ := expanded_dict.Get(k)
 						if v != nil {
-							result[k] = v
+							result.Set(k, v)
 						}
 					}
 					continue
 				}
 			}
 			if expanded != nil {
-				result[k] = expanded
+				result.Set(k, expanded)
 			}
 		}
 		return result
@@ -226,27 +229,29 @@ func (self *TemplateNode) Expand(args map[int]interface{}) interface{} {
 
 func (self *TemplateNode) SetLiteral(key string, literal interface{}) {
 	if self.NestedDict == nil {
-		self.NestedDict = make(map[string]*TemplateNode)
+		self.NestedDict = ordereddict.NewDict() //make(map[string]*TemplateNode)
 	}
 
-	self.NestedDict[key] = &TemplateNode{Literal: literal}
+	self.NestedDict.Set(key, &TemplateNode{Literal: literal})
 }
 
 func (self *TemplateNode) SetExpansion(key string, id, type_id uint32) {
 	if self.NestedDict == nil {
-		self.NestedDict = make(map[string]*TemplateNode)
+		self.NestedDict = ordereddict.NewDict() //make(map[string]*TemplateNode)
 	}
 
-	self.NestedDict[key] = &TemplateNode{Id: id, Type: type_id}
+	self.NestedDict.Set(key, &TemplateNode{Id: id, Type: type_id})
 }
 
 func (self *TemplateNode) SetNested(key string, nested *TemplateNode) {
 	if self.NestedDict == nil {
-		self.NestedDict = make(map[string]*TemplateNode)
+		self.NestedDict = ordereddict.NewDict() //make(map[string]*TemplateNode)
 	}
 
-	existing, pres := self.NestedDict[key]
+	existing_any, pres := self.NestedDict.Get(key)
 	if pres {
+		existing := existing_any.(*TemplateNode)
+
 		// If there is already a nested value we append it.
 		if existing.NestedArray != nil {
 			existing.NestedArray = append(existing.NestedArray, nested)
@@ -259,7 +264,7 @@ func (self *TemplateNode) SetNested(key string, nested *TemplateNode) {
 			NestedArray: []*TemplateNode{existing, nested},
 		}
 	}
-	self.NestedDict[key] = nested
+	self.NestedDict.Set(key, nested)
 }
 
 func NewTemplate(id int) *TemplateNode {
@@ -761,7 +766,7 @@ func GetChunks(fd io.ReadSeeker) ([]*Chunk, error) {
 	return result, nil
 }
 
-func ParseFile(fd io.ReadSeeker) (map[string]interface{}, error) {
+func ParseFile(fd io.ReadSeeker) (*ordereddict.Dict, error) {
 	header := EVTXHeader{}
 	err := readStructFromFile(fd, 0, &header)
 	if err != nil {

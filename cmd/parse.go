@@ -5,8 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"regexp"
+	"strconv"
 	"strings"
 
+	"github.com/Velocidex/ordereddict"
 	kingpin "gopkg.in/alecthomas/kingpin.v2"
 	"www.velocidex.com/golang/evtx"
 )
@@ -57,7 +60,7 @@ func (self *parsingContext) Parse() {
 		kingpin.FatalIfError(err, "Parsing chunk")
 
 		for _, i := range records {
-			event_map, ok := i.Event.(map[string]interface{})
+			event_map, ok := i.Event.(*ordereddict.Dict)
 			if ok {
 				event, ok := GetMap(event_map, "Event")
 				if !ok {
@@ -73,7 +76,7 @@ func (self *parsingContext) Parse() {
 	}
 }
 
-func (self *parsingContext) maybeExpandMessage(event_map map[string]interface{}) {
+func (self *parsingContext) maybeExpandMessage(event_map *ordereddict.Dict) {
 	// Event.System.Provider.Name
 	name, ok := GetString(event_map, "System.Provider.Name")
 	if !ok {
@@ -94,12 +97,62 @@ func (self *parsingContext) maybeExpandMessage(event_map map[string]interface{})
 		var message string
 		err = rows.Scan(&message)
 		if err == nil {
-			event_map["Message"] = message
+			event_map.Set("Message", self.expandMessage(event_map, message))
+			return
 		}
 	}
 }
 
-func GetString(event_map map[string]interface{}, members string) (string, bool) {
+var expansion_re = regexp.MustCompile(`\%[0-9n]+`)
+
+func (self *parsingContext) expandMessage(event_map *ordereddict.Dict, message string) string {
+	expansions := []string{}
+
+	data, pres := GetMap(event_map, "UserData.EventXML")
+	if !pres {
+		data_any, pres := GetAny(event_map, "EventData.Data")
+		if !pres {
+			return message
+		}
+
+		data_str, ok := data_any.([]string)
+		if !ok {
+			return message
+		}
+
+		expansions = data_str
+		data = ordereddict.NewDict()
+	}
+
+	for _, key := range data.Keys() {
+		if strings.HasPrefix(key, "xmlns") {
+			continue
+		}
+
+		value, ok := data.Get(key)
+		if ok {
+			expansions = append(expansions, fmt.Sprintf("%v", value))
+		}
+	}
+
+	return expansion_re.ReplaceAllStringFunc(message, func(match string) string {
+		switch match {
+		case "%n":
+			return " "
+		}
+
+		number, _ := strconv.Atoi(match[1:])
+
+		// Regex expansions start at 1
+		number -= 1
+		if number >= 0 && number < len(expansions) {
+			return expansions[number]
+		}
+		return match
+	})
+}
+
+func GetString(event_map *ordereddict.Dict, members string) (string, bool) {
 	var value interface{} = event_map
 	var pres bool
 
@@ -108,11 +161,11 @@ func GetString(event_map map[string]interface{}, members string) (string, bool) 
 			return "", false
 		}
 
-		value, pres = event_map[member]
+		value, pres = event_map.Get(member)
 		if !pres {
 			return "", false
 		}
-		event_map, pres = value.(map[string]interface{})
+		event_map, pres = value.(*ordereddict.Dict)
 	}
 
 	value_str, ok := value.(string)
@@ -123,7 +176,7 @@ func GetString(event_map map[string]interface{}, members string) (string, bool) 
 	return "", false
 }
 
-func GetMap(event_map map[string]interface{}, members string) (map[string]interface{}, bool) {
+func GetMap(event_map *ordereddict.Dict, members string) (*ordereddict.Dict, bool) {
 	var value interface{} = event_map
 	var pres bool
 
@@ -132,11 +185,11 @@ func GetMap(event_map map[string]interface{}, members string) (map[string]interf
 			return nil, false
 		}
 
-		value, pres = event_map[member]
+		value, pres = event_map.Get(member)
 		if !pres {
 			return nil, false
 		}
-		event_map, pres = value.(map[string]interface{})
+		event_map, pres = value.(*ordereddict.Dict)
 		if !pres {
 			return nil, false
 		}
@@ -145,7 +198,26 @@ func GetMap(event_map map[string]interface{}, members string) (map[string]interf
 	return event_map, true
 }
 
-func GetInt(event_map map[string]interface{}, members string) (int, bool) {
+func GetAny(event_map *ordereddict.Dict, members string) (interface{}, bool) {
+	var value interface{} = event_map
+	var pres bool
+
+	for _, member := range strings.Split(members, ".") {
+		if event_map == nil {
+			return nil, false
+		}
+
+		value, pres = event_map.Get(member)
+		if !pres {
+			return nil, false
+		}
+		event_map, pres = value.(*ordereddict.Dict)
+	}
+
+	return value, true
+}
+
+func GetInt(event_map *ordereddict.Dict, members string) (int, bool) {
 	var value interface{} = event_map
 	var pres bool
 
@@ -154,11 +226,11 @@ func GetInt(event_map map[string]interface{}, members string) (int, bool) {
 			return 0, false
 		}
 
-		value, pres = event_map[member]
+		value, pres = event_map.Get(member)
 		if !pres {
 			return 0, false
 		}
-		event_map, pres = value.(map[string]interface{})
+		event_map, pres = value.(*ordereddict.Dict)
 	}
 
 	switch t := value.(type) {

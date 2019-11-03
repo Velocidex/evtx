@@ -69,20 +69,20 @@ the message will fail).
 */
 
 func NormalizeEventData(expanded interface{}) {
-	data, ok := expanded.(map[string]interface{})
+	data, ok := expanded.(*ordereddict.Dict)
 	if !ok {
 		return
 	}
-	event_data, pres := data["EventData"]
+	event_data, pres := data.Get("EventData")
 	if !pres {
 		return
 	}
-	event_data_map, ok := event_data.(map[string]interface{})
+	event_data_map, ok := event_data.(*ordereddict.Dict)
 	if !ok {
 		return
 	}
 
-	data_tag, pres := event_data_map["Data"]
+	data_tag, pres := event_data_map.Get("Data")
 	if !pres {
 		return
 	}
@@ -94,13 +94,13 @@ func NormalizeEventData(expanded interface{}) {
 
 	result := ordereddict.NewDict()
 	for _, item := range data_array {
-		item_map, ok := item.(map[string]interface{})
+		item_map, ok := item.(*ordereddict.Dict)
 		if !ok {
 			return
 		}
 
 		// Look for name and "" pairs.
-		name_any, pres := item_map["Name"]
+		name_any, pres := item_map.Get("Name")
 		if !pres {
 			return
 		}
@@ -110,12 +110,12 @@ func NormalizeEventData(expanded interface{}) {
 			return
 		}
 
-		value, pres := item_map["Value"]
+		value, pres := item_map.Get("Value")
 		if !pres {
 			return
 		}
 		result.Set(name, value)
 	}
 
-	data["EventData"] = result
+	data.Set("EventData", result)
 }
