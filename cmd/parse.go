@@ -62,7 +62,7 @@ func (self *parsingContext) Parse() {
 		for _, i := range records {
 			event_map, ok := i.Event.(*ordereddict.Dict)
 			if ok {
-				event, ok := GetMap(event_map, "Event")
+				event, ok := ordereddict.GetMap(event_map, "Event")
 				if !ok {
 					continue
 				}
@@ -77,13 +77,18 @@ func (self *parsingContext) Parse() {
 }
 
 func (self *parsingContext) maybeExpandMessage(event_map *ordereddict.Dict) {
+	// If not message database is loaded just ignore it.
+	if self.query == nil {
+		return
+	}
+
 	// Event.System.Provider.Name
-	name, ok := GetString(event_map, "System.Provider.Name")
+	name, ok := ordereddict.GetString(event_map, "System.Provider.Name")
 	if !ok {
 		return
 	}
 
-	event_id, ok := GetInt(event_map, "System.EventID.Value")
+	event_id, ok := ordereddict.GetInt(event_map, "System.EventID.Value")
 	if !ok {
 		return
 	}
@@ -97,7 +102,7 @@ func (self *parsingContext) maybeExpandMessage(event_map *ordereddict.Dict) {
 		var message string
 		err = rows.Scan(&message)
 		if err == nil {
-			event_map.Set("Message", self.expandMessage(event_map, message))
+			event_map.Set("Message", evtx.ExpandMessage(event_map, message))
 			return
 		}
 	}
@@ -108,9 +113,9 @@ var expansion_re = regexp.MustCompile(`\%[0-9n]+`)
 func (self *parsingContext) expandMessage(event_map *ordereddict.Dict, message string) string {
 	expansions := []string{}
 
-	data, pres := GetMap(event_map, "UserData.EventXML")
+	data, pres := ordereddict.GetMap(event_map, "UserData.EventXML")
 	if !pres {
-		data_any, pres := GetAny(event_map, "EventData.Data")
+		data_any, pres := ordereddict.GetAny(event_map, "EventData.Data")
 		if !pres {
 			return message
 		}
@@ -150,112 +155,6 @@ func (self *parsingContext) expandMessage(event_map *ordereddict.Dict, message s
 		}
 		return match
 	})
-}
-
-func GetString(event_map *ordereddict.Dict, members string) (string, bool) {
-	var value interface{} = event_map
-	var pres bool
-
-	for _, member := range strings.Split(members, ".") {
-		if event_map == nil {
-			return "", false
-		}
-
-		value, pres = event_map.Get(member)
-		if !pres {
-			return "", false
-		}
-		event_map, pres = value.(*ordereddict.Dict)
-	}
-
-	value_str, ok := value.(string)
-	if ok {
-		return value_str, true
-	}
-
-	return "", false
-}
-
-func GetMap(event_map *ordereddict.Dict, members string) (*ordereddict.Dict, bool) {
-	var value interface{} = event_map
-	var pres bool
-
-	for _, member := range strings.Split(members, ".") {
-		if event_map == nil {
-			return nil, false
-		}
-
-		value, pres = event_map.Get(member)
-		if !pres {
-			return nil, false
-		}
-		event_map, pres = value.(*ordereddict.Dict)
-		if !pres {
-			return nil, false
-		}
-	}
-
-	return event_map, true
-}
-
-func GetAny(event_map *ordereddict.Dict, members string) (interface{}, bool) {
-	var value interface{} = event_map
-	var pres bool
-
-	for _, member := range strings.Split(members, ".") {
-		if event_map == nil {
-			return nil, false
-		}
-
-		value, pres = event_map.Get(member)
-		if !pres {
-			return nil, false
-		}
-		event_map, pres = value.(*ordereddict.Dict)
-	}
-
-	return value, true
-}
-
-func GetInt(event_map *ordereddict.Dict, members string) (int, bool) {
-	var value interface{} = event_map
-	var pres bool
-
-	for _, member := range strings.Split(members, ".") {
-		if event_map == nil {
-			return 0, false
-		}
-
-		value, pres = event_map.Get(member)
-		if !pres {
-			return 0, false
-		}
-		event_map, pres = value.(*ordereddict.Dict)
-	}
-
-	switch t := value.(type) {
-	case int:
-		return t, true
-	case uint8:
-		return int(t), true
-	case uint16:
-		return int(t), true
-	case uint32:
-		return int(t), true
-	case uint64:
-		return int(t), true
-	case int8:
-		return int(t), true
-	case int16:
-		return int(t), true
-	case int32:
-		return int(t), true
-	case int64:
-		return int(t), true
-
-	}
-
-	return 0, false
 }
 
 func doParse() {

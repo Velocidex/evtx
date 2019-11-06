@@ -1,5 +1,7 @@
 github.com/Velocidex/ordereddict v0.0.0-20191103011020-3b5a5f6957d4 h1:0sJvmFhuTT8W/qOlka2y3L1FrbRcP9ZxXMKejTGMCno=
 github.com/Velocidex/ordereddict v0.0.0-20191103011020-3b5a5f6957d4/go.mod h1:pxJpvN5ISMtDwrdIdqnJ3ZrjIngCw+WT6gfNil6Zjvo=
+github.com/Velocidex/ordereddict v0.0.0-20191106020901-97c468e5e403 h1:IyE0Jbkgftu+no3dqzrQOKsISicXDk5ob6IYdXaxlS8=
+github.com/Velocidex/ordereddict v0.0.0-20191106020901-97c468e5e403/go.mod h1:pxJpvN5ISMtDwrdIdqnJ3ZrjIngCw+WT6gfNil6Zjvo=
 github.com/alecthomas/repr v0.0.0-20181024024818-d37bc2a10ba1/go.mod h1:xTS7Pm1pD1mvyM075QCDSRqH6qRLXylzS24ZTpRiSzQ=
 github.com/alecthomas/template v0.0.0-20160405071501-a0175ee3bccc h1:cAKDfWh5VpdgMhJosfJnn5/FoN2SRZ4p7fJNX58YPaU=
 github.com/alecthomas/template v0.0.0-20160405071501-a0175ee3bccc/go.mod h1:LOuyumcjzFXgccqObfd/Ljyb9UuFJ6TxHnclSeseNhc=
