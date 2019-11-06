@@ -7,14 +7,13 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
-	"regexp"
 	"strings"
 
 	_ "github.com/mattn/go-sqlite3"
 	"golang.org/x/sys/windows/registry"
 	kingpin "gopkg.in/alecthomas/kingpin.v2"
 	"www.velocidex.com/golang/binparsergen/reader"
+	"www.velocidex.com/golang/evtx"
 	pe "www.velocidex.com/golang/go-pe"
 )
 
@@ -67,7 +66,7 @@ func walkProvider(cb func(provider string, message_table string) error) error {
 				continue
 			}
 
-			for _, message_file := range expandLocations(message_files) {
+			for _, message_file := range evtx.ExpandLocations(message_files) {
 				err = cb(provider_name, message_file)
 				if err != nil {
 					fmt.Printf("While processing %v (%v): %v\n",
@@ -80,85 +79,6 @@ func walkProvider(cb func(provider string, message_table string) error) error {
 	}
 
 	return nil
-}
-
-var system_root_re = regexp.MustCompile("(?i)%?SystemRoot%?")
-var windir_re = regexp.MustCompile("(?i)%windir%")
-var programfiles_re = regexp.MustCompile("(?i)%programfiles%")
-var system32_re = regexp.MustCompile(`(?i)\\System32\\`)
-
-// Produce a list of possible locations the message file may be. We
-// process all of them because sometimes event messages are split
-// across multiple dlls. For example, a generic message table may
-// exist in C:\Windows\System32\XXX.dll but a localized message table
-// also exists in C:\Windows\System32\en-us\XXX.dll.mui
-func expandLocations(message_file string) []string {
-
-	// Expand environment variables in paths.
-	replace_env_vars := func(paths []string) []string {
-		system_root := os.Getenv("SystemRoot")
-		windir := os.Getenv("WinDir")
-		programfiles := os.Getenv("programfiles")
-		programfiles_x86 := os.Getenv("ProgramFiles(x86)")
-
-		result := []string{}
-		for _, path := range paths {
-			path = system_root_re.ReplaceAllLiteralString(
-				path, system_root)
-
-			path = windir_re.ReplaceAllLiteralString(
-				path, windir)
-
-			if programfiles_re.FindString(path) != "" {
-				result = append(result,
-					programfiles_re.ReplaceAllLiteralString(
-						path, programfiles))
-				result = append(result,
-					programfiles_re.ReplaceAllLiteralString(
-						path, programfiles_x86))
-			} else {
-				result = append(result, path)
-			}
-		}
-		return result
-	}
-
-	// When paths refer to system32 the message table may instead
-	// reside in the 32 bit version.
-	split_system32 := func(paths []string) []string {
-		result := []string{}
-		for _, path := range paths {
-			result = append(result, path)
-
-			// Sometimes messages are found in the 32 bit folders.
-			if system32_re.FindString(path) != "" {
-				result = append(result, system32_re.ReplaceAllLiteralString(
-					path, "\\SysWow64\\"))
-			}
-		}
-
-		return result
-	}
-
-	include_muis := func(paths []string) []string {
-		result := []string{}
-		for _, path := range paths {
-			result = append(result, path)
-
-			// Sometimes messages are found in the MUI
-			// files include those as well.
-			dll_name := filepath.Base(path)
-			dir_name := filepath.Dir(path)
-
-			result = append(result, filepath.Join(
-				dir_name, "en-US", dll_name+".mui"))
-		}
-		return result
-	}
-
-	// Message file values may be separated by ;
-	return include_muis(split_system32(replace_env_vars(
-		strings.Split(message_file, ";"))))
 }
 
 func makeDatabase(filename string) (*sql.DB, error) {

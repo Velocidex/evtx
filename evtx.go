@@ -232,7 +232,10 @@ func (self *TemplateNode) SetLiteral(key string, literal interface{}) {
 		self.NestedDict = ordereddict.NewDict() //make(map[string]*TemplateNode)
 	}
 
-	self.NestedDict.Set(key, &TemplateNode{Literal: literal})
+	// Ignore useless xmlsn attributes.
+	if key != "xmlns" {
+		self.NestedDict.Set(key, &TemplateNode{Literal: literal})
+	}
 }
 
 func (self *TemplateNode) SetExpansion(key string, id, type_id uint32) {
