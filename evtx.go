@@ -601,6 +601,19 @@ func ParseTemplateInstance(ctx *ParseContext) bool {
 			arg_values[idx] = ctx.ConsumeUint32()
 		case 0x0A: // uint64_t
 			arg_values[idx] = ctx.ConsumeUint64()
+		case 0x0d: // bool
+			value := false
+			switch arg.argLen {
+			case 8:
+				value = ctx.ConsumeUint64() > 0
+			case 4:
+				value = ctx.ConsumeUint32() > 0
+			case 2:
+				value = ctx.ConsumeUint16() > 0
+			case 1:
+				value = ctx.ConsumeUint8() > 0
+			}
+			arg_values[idx] = value
 		case 0xe: // binary
 			arg_values[idx] = ctx.ConsumeBytes(arg.argLen)
 		case 0x0f: // GUID
