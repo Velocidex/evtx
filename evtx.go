@@ -321,12 +321,17 @@ func (self *ParseContext) PushTemplate(key string, template *TemplateNode) {
 }
 
 func (self *ParseContext) CurrentTemplate() *TemplateNode {
-	return self.stack[len(self.stack)-1]
+	if len(self.stack) > 0 {
+		return self.stack[len(self.stack)-1]
+	}
+	return NewTemplate(0)
 }
 
 func (self *ParseContext) PopTemplate() {
-	debug("PopTemplate: %x -> %x\n", len(self.stack), len(self.stack)-1)
-	self.stack = self.stack[:len(self.stack)-1]
+	if len(self.stack) > 0 {
+		debug("PopTemplate: %x -> %x\n", len(self.stack), len(self.stack)-1)
+		self.stack = self.stack[:len(self.stack)-1]
+	}
 }
 
 func NewParseContext(chunk *Chunk) *ParseContext {
