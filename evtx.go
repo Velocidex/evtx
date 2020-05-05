@@ -376,7 +376,7 @@ func (self *ParseContext) ConsumeUint32() uint32 {
 }
 
 func (self *ParseContext) ConsumeUint64() uint64 {
-	if len(self.buff) < self.offset {
+	if len(self.buff) < self.offset+8 {
 		return 0
 	}
 
