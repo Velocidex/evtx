@@ -751,6 +751,17 @@ func ParseBinXML(ctx *ParseContext) {
 	}
 }
 
+func is_supported(minor, major uint16) bool {
+	switch major {
+	case 3:
+		switch minor {
+		case 0, 1, 2:
+			return true
+		}
+	}
+	return false
+}
+
 // Get all the chunks in the file.
 func GetChunks(fd io.ReadSeeker) ([]*Chunk, error) {
 	result := []*Chunk{}
@@ -764,7 +775,7 @@ func GetChunks(fd io.ReadSeeker) ([]*Chunk, error) {
 		return nil, errors.New("File is not an EVTX file (wrong magic).")
 	}
 
-	if header.MinorVersion != 1 || header.MajorVersion != 3 {
+	if !is_supported(header.MinorVersion, header.MajorVersion) {
 		return nil, errors.New("Unsupported EVTX version.")
 	}
 
