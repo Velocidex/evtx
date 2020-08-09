@@ -3,7 +3,6 @@
 package evtx
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -94,24 +93,33 @@ func ExpandLocations(message_file string) []string {
 		strings.Split(message_file, ";"))))
 }
 
-func GetMessages(provider, channel string) (*MessageSet, error) {
-	result := &MessageSet{
-		Provider: provider,
-		Channel:  channel,
-		Messages: make(map[int]*pe.Message),
-	}
-	provider_key, err := registry.OpenKey(registry.LOCAL_MACHINE,
-		fmt.Sprintf(`SYSTEM\CurrentControlSet\Services\EventLog\%s\%s`,
-			channel, provider),
+func GetMessagesByGUID(provider_guid, channel string) (*MessageSet, error) {
+	key_path := `Software\Microsoft\Windows\CurrentVersion\WinEVT\Publishers\{` + provider_guid + "}"
+	provider_key, err := registry.OpenKey(registry.LOCAL_MACHINE, key_path,
 		registry.READ|registry.ENUMERATE_SUB_KEYS|registry.WOW64_64KEY)
 	if err != nil {
 		return nil, err
 	}
 	defer provider_key.Close()
 
-	message_files, _, err := provider_key.GetStringValue("EventMessageFile")
+	message_files, _, err := provider_key.GetStringValue("MessageFileName")
 	if err != nil {
 		return nil, err
+	}
+
+	provider, _, err := provider_key.GetStringValue("")
+	if err != nil {
+		provider = provider_guid
+	}
+
+	return expandLocations(message_files, provider, channel)
+}
+
+func expandLocations(message_files, provider, channel string) (*MessageSet, error) {
+	result := &MessageSet{
+		Provider: provider,
+		Channel:  channel,
+		Messages: make(map[int]*pe.Message),
 	}
 
 	for _, message_file := range ExpandLocations(message_files) {
@@ -141,4 +149,35 @@ func GetMessages(provider, channel string) (*MessageSet, error) {
 	}
 
 	return result, nil
+}
+
+func GetMessages(provider, channel string) (*MessageSet, error) {
+	root_key, err := registry.OpenKey(registry.LOCAL_MACHINE,
+		`SYSTEM\CurrentControlSet\Services\EventLog`,
+		registry.READ|registry.ENUMERATE_SUB_KEYS|registry.WOW64_64KEY)
+	if err != nil {
+		return nil, err
+	}
+	defer root_key.Close()
+
+	channel_key, err := registry.OpenKey(root_key, channel,
+		registry.READ|registry.ENUMERATE_SUB_KEYS|registry.WOW64_64KEY)
+	if err != nil {
+		return nil, err
+	}
+	defer channel_key.Close()
+
+	provider_key, err := registry.OpenKey(channel_key, provider,
+		registry.READ|registry.ENUMERATE_SUB_KEYS|registry.WOW64_64KEY)
+	if err != nil {
+		return nil, err
+	}
+	defer provider_key.Close()
+
+	message_files, _, err := provider_key.GetStringValue("EventMessageFile")
+	if err != nil {
+		return nil, err
+	}
+
+	return expandLocations(message_files, provider, channel)
 }
