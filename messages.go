@@ -25,6 +25,10 @@ func flatten(dict *ordereddict.Dict) []interface{} {
 		switch t := value.(type) {
 		case *ordereddict.Dict:
 			result = append(result, flatten(t)...)
+		case []string:
+			for _, item := range t {
+				result = append(result, item)
+			}
 		default:
 			result = append(result, value)
 		}
