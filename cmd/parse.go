@@ -1,13 +1,9 @@
 package main
 
 import (
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"os"
-	"regexp"
-	"strconv"
-	"strings"
 
 	"github.com/Velocidex/ordereddict"
 	kingpin "gopkg.in/alecthomas/kingpin.v2"
@@ -19,42 +15,28 @@ var (
 	parse_file = parse.Arg("file", "File to parse").Required().
 			OpenFile(os.O_RDONLY, os.FileMode(0666))
 
+	parse_output_file = parse.Flag("output", "File to write json in").
+				OpenFile(os.O_RDWR|os.O_CREATE|os.O_TRUNC, os.FileMode(0666))
+
 	parse_file_message_file = parse.Flag("messagedb", "Path to messages database.").
 				String()
-	start_record_id = parse.Flag("start", "First EventID to dump").
-			Int()
+
+	start_record_id   = parse.Flag("start", "First EventID to dump").Int()
+	number_of_records = parse.Flag("number", "How many records to print").
+				Default("99999999").Int()
+
+	event_id_filter = parse.Flag("event_id", "Only show these event IDs").Int()
 )
 
 type parsingContext struct {
-	db *sql.DB
-
-	query *sql.Stmt
-}
-
-func NewParsingContext() *parsingContext {
-	result := &parsingContext{}
-
-	if *parse_file_message_file != "" {
-		database, err := sql.Open("sqlite3", *parse_file_message_file)
-		kingpin.FatalIfError(err, " %v", err)
-
-		result.db = database
-
-		result.query, err = database.Prepare(`
-          SELECT message
-          FROM messages left join providers ON messages.provider_id = providers.id
-          WHERE providers.name = ? and messages.event_id = ?
-               `)
-		kingpin.FatalIfError(err, " %v", err)
-	}
-
-	return result
+	resolver evtx.MessageResolver
 }
 
 func (self *parsingContext) Parse() {
 	chunks, err := evtx.GetChunks(*parse_file)
 	kingpin.FatalIfError(err, "Getting chunks")
 
+	count := 0
 	for _, chunk := range chunks {
 		records, err := chunk.Parse(*start_record_id)
 		kingpin.FatalIfError(err, "Parsing chunk")
@@ -67,94 +49,46 @@ func (self *parsingContext) Parse() {
 					continue
 				}
 
-				self.maybeExpandMessage(event)
+				// Filter by event id
+				if *event_id_filter > 0 {
+					event_id, _ := ordereddict.GetInt(event, "System.EventID.Value")
+					if event_id != *event_id_filter {
+						continue
+					}
+				}
 
+				if self.resolver != nil {
+					event.Set("Message", evtx.ExpandMessage(event, self.resolver))
+				}
+
+				// Quit after printing this many records.
+				count++
+				if count > *number_of_records {
+					return
+				}
 				serialized, _ := json.MarshalIndent(event, " ", " ")
-				fmt.Println(string(serialized))
+				if *parse_output_file == nil {
+					fmt.Println(string(serialized))
+				} else {
+					(*parse_output_file).Write(serialized)
+				}
 			}
 		}
 	}
 }
 
-func (self *parsingContext) maybeExpandMessage(event_map *ordereddict.Dict) {
-	// If not message database is loaded just ignore it.
-	if self.query == nil {
-		return
+func NewParsingContext() *parsingContext {
+	if *parse_file_message_file != "" {
+		resolver, err := evtx.NewDBResolver(*parse_file_message_file)
+		kingpin.FatalIfError(err, " %v", err)
+		return &parsingContext{resolver}
 	}
 
-	// Event.System.Provider.Name
-	name, ok := ordereddict.GetString(event_map, "System.Provider.Name")
-	if !ok {
-		return
-	}
-
-	event_id, ok := ordereddict.GetInt(event_map, "System.EventID.Value")
-	if !ok {
-		return
-	}
-
-	rows, err := self.query.Query(name, event_id)
+	// Otherwise use the native resolver
+	resolver, err := evtx.GetNativeResolver()
 	kingpin.FatalIfError(err, " %v", err)
 
-	defer rows.Close()
-
-	for rows.Next() {
-		var message string
-		err = rows.Scan(&message)
-		if err == nil {
-			event_map.Set("Message", evtx.ExpandMessage(event_map, message))
-			return
-		}
-	}
-}
-
-var expansion_re = regexp.MustCompile(`\%[0-9n]+`)
-
-func (self *parsingContext) expandMessage(event_map *ordereddict.Dict, message string) string {
-	expansions := []string{}
-
-	data, pres := ordereddict.GetMap(event_map, "UserData.EventXML")
-	if !pres {
-		data_any, pres := ordereddict.GetAny(event_map, "EventData.Data")
-		if !pres {
-			return message
-		}
-
-		data_str, ok := data_any.([]string)
-		if !ok {
-			return message
-		}
-
-		expansions = data_str
-		data = ordereddict.NewDict()
-	}
-
-	for _, key := range data.Keys() {
-		if strings.HasPrefix(key, "xmlns") {
-			continue
-		}
-
-		value, ok := data.Get(key)
-		if ok {
-			expansions = append(expansions, fmt.Sprintf("%v", value))
-		}
-	}
-
-	return expansion_re.ReplaceAllStringFunc(message, func(match string) string {
-		switch match {
-		case "%n":
-			return " "
-		}
-
-		number, _ := strconv.Atoi(match[1:])
-
-		// Regex expansions start at 1
-		number -= 1
-		if number >= 0 && number < len(expansions) {
-			return expansions[number]
-		}
-		return match
-	})
+	return &parsingContext{resolver}
 }
 
 func doParse() {

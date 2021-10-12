@@ -1,0 +1,59 @@
+{
+  "System": {
+   "Provider": {
+    "Name": "Microsoft-Windows-Security-Auditing",
+    "Guid": "54849625-5478-4994-A5BA-3E3B0328C30D"
+   },
+   "EventID": {
+    "Value": 4624
+   },
+   "Version": 2,
+   "Level": 0,
+   "Task": 12544,
+   "Opcode": 0,
+   "Keywords": 9232379236109516800,
+   "TimeCreated": {
+    "SystemTime": 1549462715.946133
+   },
+   "EventRecordID": 31880,
+   "Correlation": {
+    "ActivityID": "02277543-BEAA-0000-BB75-2702AABED401"
+   },
+   "Execution": {
+    "ProcessID": 676,
+    "ThreadID": 780
+   },
+   "Channel": "Security",
+   "Computer": "TestComputer",
+   "Security": {}
+  },
+  "EventData": {
+   "SubjectUserSid": "S-1-5-21-546003962-2713609280-610790815-1001",
+   "SubjectUserName": "test",
+   "SubjectDomainName": "TESTCOMPUTER",
+   "SubjectLogonId": 170334,
+   "TargetUserSid": "S-1-5-21-546003962-2713609280-610790815-1002",
+   "TargetUserName": "user",
+   "TargetDomainName": "TESTCOMPUTER",
+   "TargetLogonId": 6003213,
+   "LogonType": 2,
+   "LogonProcessName": "seclogo",
+   "AuthenticationPackageName": "Negotiate",
+   "WorkstationName": "TESTCOMPUTER",
+   "LogonGuid": "00000000-0000-0000-0000-000000000000",
+   "TransmittedServices": "-",
+   "LmPackageName": "-",
+   "KeyLength": 0,
+   "ProcessId": 4764,
+   "ProcessName": "C:\\Windows\\System32\\svchost.exe",
+   "IpAddress": "::1",
+   "IpPort": "0",
+   "ImpersonationLevel": "%%1833",
+   "RestrictedAdminMode": "-",
+   "TargetOutboundUserName": "-",
+   "TargetOutboundDomainName": "-",
+   "VirtualAccount": "%%1843",
+   "TargetLinkedLogonId": 0,
+   "ElevatedToken": "%%1843"
+  }
+ }

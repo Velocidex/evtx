@@ -1,0 +1,60 @@
+{
+  "System": {
+   "Provider": {
+    "Name": "Microsoft-Windows-Security-Auditing",
+    "Guid": "54849625-5478-4994-A5BA-3E3B0328C30D"
+   },
+   "EventID": {
+    "Value": 4624
+   },
+   "Version": 2,
+   "Level": 0,
+   "Task": 12544,
+   "Opcode": 0,
+   "Keywords": 9232379236109516800,
+   "TimeCreated": {
+    "SystemTime": 1549462715.946133
+   },
+   "EventRecordID": 31880,
+   "Correlation": {
+    "ActivityID": "02277543-BEAA-0000-BB75-2702AABED401"
+   },
+   "Execution": {
+    "ProcessID": 676,
+    "ThreadID": 780
+   },
+   "Channel": "Security",
+   "Computer": "TestComputer",
+   "Security": {}
+  },
+  "EventData": {
+   "SubjectUserSid": "S-1-5-21-546003962-2713609280-610790815-1001",
+   "SubjectUserName": "test",
+   "SubjectDomainName": "TESTCOMPUTER",
+   "SubjectLogonId": 170334,
+   "TargetUserSid": "S-1-5-21-546003962-2713609280-610790815-1002",
+   "TargetUserName": "user",
+   "TargetDomainName": "TESTCOMPUTER",
+   "TargetLogonId": 6003213,
+   "LogonType": 2,
+   "LogonProcessName": "seclogo",
+   "AuthenticationPackageName": "Negotiate",
+   "WorkstationName": "TESTCOMPUTER",
+   "LogonGuid": "00000000-0000-0000-0000-000000000000",
+   "TransmittedServices": "-",
+   "LmPackageName": "-",
+   "KeyLength": 0,
+   "ProcessId": 4764,
+   "ProcessName": "C:\\Windows\\System32\\svchost.exe",
+   "IpAddress": "::1",
+   "IpPort": "0",
+   "ImpersonationLevel": "%%1833",
+   "RestrictedAdminMode": "-",
+   "TargetOutboundUserName": "-",
+   "TargetOutboundDomainName": "-",
+   "VirtualAccount": "%%1843",
+   "TargetLinkedLogonId": 0,
+   "ElevatedToken": "%%1843"
+  },
+  "Message": "An account was successfully logged on.\n\nSubject:\n\tSecurity ID:\t\tS-1-5-21-546003962-2713609280-610790815-1001\n\tAccount Name:\t\ttest\n\tAccount Domain:\t\tTESTCOMPUTER\n\tLogon ID:\t\t170334\n\nLogon Type:\t\t\t2\n\nImpersonation Level:\t\tImpersonation\r\n\n\nNew Logon:\n\tSecurity ID:\t\tS-1-5-21-546003962-2713609280-610790815-1002\n\tAccount Name:\t\tuser\n\tAccount Domain:\t\tTESTCOMPUTER\n\tLogon ID:\t\t6003213\n\tLogon GUID:\t\t00000000-0000-0000-0000-000000000000\n\nProcess Information:\n\tProcess ID:\t\t4764\n\tProcess Name:\t\tC:\\Windows\\System32\\svchost.exe\n\nNetwork Information:\n\tWorkstation Name:\tTESTCOMPUTER\n\tSource Network Address:\t::1\n\tSource Port:\t\t0\n\nDetailed Authentication Information:\n\tLogon Process:\t\tseclogo\n\tAuthentication Package:\tNegotiate\n\tTransited Services:\t-\n\tPackage Name (NTLM only):\t-\n\tKey Length:\t\t0\n\nThis event is generated when a logon session is created. It is generated on the computer that was accessed.\n\nThe subject fields indicate the account on the local system which requested the logon. This is most commonly a service such as the Server service, or a local process such as Winlogon.exe or Services.exe.\n\nThe logon type field indicates the kind of logon that occurred. The most common types are 2 (interactive) and 3 (network).\n\nThe New Logon fields indicate the account for whom the new logon was created, i.e. the account that was logged on.\n\nThe network fields indicate where a remote logon request originated. Workstation name is not always available and may be left blank in some cases.\n\nThe impersonation level field indicates the extent to which a process in the logon session can impersonate.\n\nThe authentication information fields provide detailed information about this specific logon request.\n\t- Logon GUID is a unique identifier that can be used to correlate this event with a KDC event.\n\t- Transited services indicate which intermediate services have participated in this logon request.\n\t- Package name indicates which sub-protocol was used among the NTLM protocols.\n\t- Key length indicates the length of the generated session key. This will be 0 if no session key was requested.\r\n"
+ }
