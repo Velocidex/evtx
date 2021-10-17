@@ -23,6 +23,18 @@ type MessageResolver interface {
 	Close()
 }
 
+type NullResolver struct{}
+
+func (self NullResolver) GetMessage(provider, channel string, event_id int) string {
+	return ""
+}
+
+func (self NullResolver) GetParameter(provider, channel string, parameter_id int) string {
+	return ""
+}
+
+func (self NullResolver) Close() {}
+
 func flatten(dict *ordereddict.Dict) []interface{} {
 	result := []interface{}{}
 
