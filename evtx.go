@@ -384,7 +384,7 @@ func (self *ParseContext) ConsumeInt32() (ret int32) {
 	buf := bytes.NewReader(self.buff[self.offset:])
 	err := binary.Read(buf, binary.LittleEndian, &ret)
 	if err != nil {
-		fmt.Println("Binary read for Int32 Failed:", err)
+		return 0
 	}
 	self.offset += 4
 	return
