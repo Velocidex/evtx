@@ -375,6 +375,22 @@ func (self *ParseContext) ConsumeUint32() uint32 {
 	return result
 }
 
+func (self *ParseContext) ConsumeInt32() (ret int32) {
+
+	if len(self.buff) < self.offset+4 {
+		return 0
+	}
+
+	buf := bytes.NewReader(self.buff[self.offset:])
+	err := binary.Read(buf, binary.LittleEndian, &ret)
+	if err != nil {
+		fmt.Println("Binary read for Int32 Failed:", err)
+	}
+	self.offset += 4
+	return
+
+}
+
 func (self *ParseContext) ConsumeUint64() uint64 {
 	if len(self.buff) < self.offset+8 {
 		return 0
@@ -383,6 +399,22 @@ func (self *ParseContext) ConsumeUint64() uint64 {
 	result := binary.LittleEndian.Uint64(self.buff[self.offset:])
 	self.offset += 8
 	return result
+}
+
+func (self *ParseContext) ConsumeReal64() (ret float64) {
+
+	if len(self.buff) < self.offset+8 {
+		return 0
+	}
+
+	buf := bytes.NewReader(self.buff[self.offset:])
+	err := binary.Read(buf, binary.LittleEndian, &ret)
+	if err != nil {
+		fmt.Println("Binary read for Real64 Failed:", err)
+	}
+	self.offset += 8
+	return
+
 }
 
 func (self *ParseContext) ConsumeBytes(size int) []byte {
@@ -602,10 +634,14 @@ func ParseTemplateInstance(ctx *ParseContext) bool {
 			arg_values[idx] = ctx.ConsumeUint8()
 		case 0x06: // uint16_t
 			arg_values[idx] = ctx.ConsumeUint16()
+		case 0x07: //int32_t
+			arg_values[idx] = ctx.ConsumeInt32()
 		case 0x08: // uint32_t
 			arg_values[idx] = ctx.ConsumeUint32()
 		case 0x0A: // uint64_t
 			arg_values[idx] = ctx.ConsumeUint64()
+		case 0xc: //real64_t
+			arg_values[idx] = ctx.ConsumeReal64()
 		case 0x0d: // bool
 			value := false
 			switch arg.argLen {
