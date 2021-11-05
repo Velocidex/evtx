@@ -19,6 +19,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"strings"
+	"time"
 
 	"fmt"
 	"io"
@@ -395,6 +396,142 @@ func (self *ParseContext) ConsumeBytes(size int) []byte {
 	return result
 }
 
+func (self *ParseContext) ConsumeInt64() (ret int64) {
+
+	if len(self.buff) < self.offset+8 {
+		return 0
+	}
+
+	buf := bytes.NewReader(self.buff[self.offset:])
+	err := binary.Read(buf, binary.LittleEndian, &ret)
+	if err != nil {
+		return 0
+	}
+	self.offset += 8
+	return
+
+}
+
+func (self *ParseContext) ConsumeInt32() (ret int32) {
+
+	if len(self.buff) < self.offset+4 {
+		return 0
+	}
+
+	buf := bytes.NewReader(self.buff[self.offset:])
+	err := binary.Read(buf, binary.LittleEndian, &ret)
+	if err != nil {
+		return 0
+	}
+	self.offset += 4
+	return
+
+}
+
+func (self *ParseContext) ConsumeReal32() (ret float32) {
+
+	if len(self.buff) < self.offset+4 {
+		return 0
+	}
+
+	buf := bytes.NewReader(self.buff[self.offset:])
+	err := binary.Read(buf, binary.LittleEndian, &ret)
+	if err != nil {
+		return 0
+	}
+	self.offset += 4
+	return
+}
+
+func (self *ParseContext) ConsumeReal64() (ret float64) {
+
+	if len(self.buff) < self.offset+8 {
+		return 0
+	}
+
+	buf := bytes.NewReader(self.buff[self.offset:])
+	err := binary.Read(buf, binary.LittleEndian, &ret)
+	if err != nil {
+		return 0
+	}
+	self.offset += 8
+	return
+}
+
+func (self *ParseContext) ConsumeSysTime(size int) string {
+
+	if len(self.buff) < self.offset+16 {
+		return "SysTimeParsingError"
+	}
+
+	buffer := self.buff[self.offset : self.offset+size]
+	self.offset += size
+
+	year := binary.LittleEndian.Uint16(buffer[0:2])
+	month := binary.LittleEndian.Uint16(buffer[2:4])
+	day := binary.LittleEndian.Uint16(buffer[6:8])
+	hour := binary.LittleEndian.Uint16(buffer[8:10])
+	min := binary.LittleEndian.Uint16(buffer[10:12])
+	sec := binary.LittleEndian.Uint16(buffer[12:14])
+	msec := binary.LittleEndian.Uint16(buffer[14:16])
+
+	result := time.Date(int(year), time.Month(month), int(day), int(hour), int(min), int(sec), int(msec), time.UTC)
+	return result.String()
+}
+
+func (self *ParseContext) ConsumeUnit16Array(size int) []uint16 {
+
+	uint16array := []uint16{}
+	buffer := self.buff[self.offset : self.offset+size]
+	self.offset += size
+
+	index := 0
+	for index < len(buffer) {
+		value := binary.LittleEndian.Uint16((buffer[index:]))
+		uint16array = append(uint16array, value)
+		index += 2
+
+	}
+
+	return uint16array
+}
+
+func (self *ParseContext) ConsumeUnit64Array(size int) []uint64 {
+
+	uint64array := []uint64{}
+	buffer := self.buff[self.offset : self.offset+size]
+	self.offset += size
+
+	index := 0
+	for index < len(buffer) {
+		value := binary.LittleEndian.Uint64((buffer[index:]))
+		uint64array = append(uint64array, value)
+		index += 8
+
+	}
+	return uint64array
+}
+
+func (self *ParseContext) ConsumeInt64hexArray(size int) []string {
+
+	buffer := self.buff[self.offset : self.offset+size]
+	self.offset += size
+	result := []string{}
+
+	for i := 0; i < len(buffer); i = i + 8 {
+
+		var ret int64
+		buf := bytes.NewReader(buffer[i : i+8])
+		err := binary.Read(buf, binary.LittleEndian, &ret)
+		if err != nil {
+			return result
+		}
+		result = append(result, "0x"+fmt.Sprintf("%x", ret))
+
+	}
+	return result
+}
+
 func (self *ParseContext) SkipBytes(count int) {
 	self.offset += count
 }
@@ -602,10 +739,18 @@ func ParseTemplateInstance(ctx *ParseContext) bool {
 			arg_values[idx] = ctx.ConsumeUint8()
 		case 0x06: // uint16_t
 			arg_values[idx] = ctx.ConsumeUint16()
+		case 0x07: //int32_t
+			arg_values[idx] = ctx.ConsumeInt32()
 		case 0x08: // uint32_t
 			arg_values[idx] = ctx.ConsumeUint32()
+		case 0x09:
+			arg_values[idx] = ctx.ConsumeInt64()
 		case 0x0A: // uint64_t
 			arg_values[idx] = ctx.ConsumeUint64()
+		case 0x0b: // real32_t
+			arg_values[idx] = ctx.ConsumeReal32()
+		case 0xc: //real64_t
+			arg_values[idx] = ctx.ConsumeReal64()
 		case 0x0d: // bool
 			value := false
 			switch arg.argLen {
@@ -640,6 +785,9 @@ func ParseTemplateInstance(ctx *ParseContext) bool {
 		case 0x11: // FileTime - format as seconds since epoch.
 			arg_values[idx] = filetimeToUnixtime(ctx.ConsumeUint64())
 
+		case 0x12: //systime
+			arg_values[idx] = ctx.ConsumeSysTime(arg.argLen)
+
 		case 0x13: // SID
 			str := "S"
 			str += fmt.Sprintf("-%d", ctx.ConsumeUint8())
@@ -669,6 +817,15 @@ func ParseTemplateInstance(ctx *ParseContext) bool {
 			arg_values[idx] = strings.Split(
 				string(UTF16LEToUTF8(ctx.ConsumeBytes(arg.argLen))),
 				"\x00")
+
+		case 0x86: // Array Of Uint16
+			arg_values[idx] = ctx.ConsumeUnit16Array(arg.argLen)
+
+		case 0x8a: // Array of Uint64
+			arg_values[idx] = ctx.ConsumeUnit64Array(arg.argLen)
+
+		case 0x95: // Array of 64-bit Integer Hex
+			arg_values[idx] = ctx.ConsumeInt64hexArray(arg.argLen)
 
 		default:
 			unknown := ctx.ConsumeBytes(arg.argLen)
