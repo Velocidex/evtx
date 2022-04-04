@@ -493,6 +493,10 @@ func (self *ParseContext) ConsumeUnit16Array(size int) []uint16 {
 	if self.offset+size >= len(self.buff) {
 		size = len(self.buff) - self.offset - 1
 	}
+	if self.offset > len(self.buff) {
+		return nil
+	}
+
 	buffer := self.buff[self.offset : self.offset+size]
 	self.offset += size
 
@@ -513,6 +517,10 @@ func (self *ParseContext) ConsumeUnit64Array(size int) []uint64 {
 	if self.offset+size >= len(self.buff) {
 		size = len(self.buff) - self.offset - 1
 	}
+	if self.offset > len(self.buff) {
+		return nil
+	}
+
 	buffer := self.buff[self.offset : self.offset+size]
 	self.offset += size
 
@@ -529,6 +537,10 @@ func (self *ParseContext) ConsumeUnit64Array(size int) []uint64 {
 func (self *ParseContext) ConsumeInt64hexArray(size int) []string {
 	if self.offset+size >= len(self.buff) {
 		size = len(self.buff) - self.offset - 1
+	}
+
+	if self.offset > len(self.buff) {
+		return nil
 	}
 
 	buffer := self.buff[self.offset : self.offset+size]
