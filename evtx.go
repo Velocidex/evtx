@@ -151,6 +151,10 @@ func (self *Chunk) Parse(start_record_id int) ([]*EventRecord, error) {
 			result = append(result, record)
 		}
 
+		if len(result) > 1024*10 {
+			return nil, errors.New("Too many records in chunk")
+		}
+
 		ctx.SetOffset(start_of_record + int(record.Header.Size))
 	}
 	return result, nil
@@ -258,7 +262,9 @@ func (self *TemplateNode) SetNested(key string, nested *TemplateNode) {
 
 		// If there is already a nested value we append it.
 		if existing.NestedArray != nil {
-			existing.NestedArray = append(existing.NestedArray, nested)
+			if len(existing.NestedArray) < 1024*10 {
+				existing.NestedArray = append(existing.NestedArray, nested)
+			}
 			return
 		}
 
@@ -318,7 +324,9 @@ func (self *ParseContext) PushTemplate(key string, template *TemplateNode) {
 	debug("PushTemplate: %x -> %x\n", len(self.stack), len(self.stack)+1)
 	current := self.CurrentTemplate()
 	current.SetNested(key, template)
-	self.stack = append(self.stack, template)
+	if len(self.stack) < 1024*10 {
+		self.stack = append(self.stack, template)
+	}
 }
 
 func (self *ParseContext) CurrentTemplate() *TemplateNode {
@@ -482,6 +490,9 @@ func (self *ParseContext) ConsumeSysTime(size int) string {
 func (self *ParseContext) ConsumeUnit16Array(size int) []uint16 {
 
 	uint16array := []uint16{}
+	if self.offset+size >= len(self.buff) {
+		size = len(self.buff) - self.offset - 1
+	}
 	buffer := self.buff[self.offset : self.offset+size]
 	self.offset += size
 
@@ -499,6 +510,9 @@ func (self *ParseContext) ConsumeUnit16Array(size int) []uint16 {
 func (self *ParseContext) ConsumeUnit64Array(size int) []uint64 {
 
 	uint64array := []uint64{}
+	if self.offset+size >= len(self.buff) {
+		size = len(self.buff) - self.offset - 1
+	}
 	buffer := self.buff[self.offset : self.offset+size]
 	self.offset += size
 
@@ -513,6 +527,9 @@ func (self *ParseContext) ConsumeUnit64Array(size int) []uint64 {
 }
 
 func (self *ParseContext) ConsumeInt64hexArray(size int) []string {
+	if self.offset+size >= len(self.buff) {
+		size = len(self.buff) - self.offset - 1
+	}
 
 	buffer := self.buff[self.offset : self.offset+size]
 	self.offset += size
@@ -695,7 +712,11 @@ func ParseTemplateInstance(ctx *ParseContext) bool {
 	*/
 	ctx.SkipBytes(4)
 
+	// Template arguments should not be unreasonable here.
 	numArguments := ctx.ConsumeUint32()
+	if numArguments > 1024*10 {
+		return false
+	}
 
 	debug("template id %x\n", short_id)
 
