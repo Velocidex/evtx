@@ -152,7 +152,7 @@ func (self *Chunk) Parse(start_record_id int) ([]*EventRecord, error) {
 		}
 
 		if len(result) > 1024*10 {
-			return nil, errors.New("Too many records in chunk")
+			return result, errors.New("Too many records in chunk")
 		}
 
 		ctx.SetOffset(start_of_record + int(record.Header.Size))
@@ -724,10 +724,11 @@ func ParseTemplateInstance(ctx *ParseContext) bool {
 	*/
 	ctx.SkipBytes(4)
 
-	// Template arguments should not be unreasonable here.
+	// Template arguments should not be unreasonable here. Just cap
+	// them at a reasonable size.
 	numArguments := ctx.ConsumeUint32()
 	if numArguments > 1024*10 {
-		return false
+		numArguments = 10 * 1024
 	}
 
 	debug("template id %x\n", short_id)
