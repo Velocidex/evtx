@@ -18,6 +18,8 @@ var (
 	parse_output_file = parse.Flag("output", "File to write json in").
 				OpenFile(os.O_RDWR|os.O_CREATE|os.O_TRUNC, os.FileMode(0666))
 
+	parse_json_compact = parse.Flag("jsonCompact", "Output the JSON in a compact format").Bool()
+
 	parse_file_message_file = parse.Flag("messagedb", "Path to messages database.").
 				String()
 
@@ -37,6 +39,7 @@ func (self *parsingContext) Parse() {
 	kingpin.FatalIfError(err, "Getting chunks")
 
 	count := 0
+	var serialized []byte
 	for _, chunk := range chunks {
 		records, err := chunk.Parse(*start_record_id)
 		kingpin.FatalIfError(err, "Parsing chunk")
@@ -66,7 +69,12 @@ func (self *parsingContext) Parse() {
 				if count > *number_of_records {
 					return
 				}
-				serialized, _ := json.MarshalIndent(event, " ", " ")
+				if *parse_json_compact {
+					serialized, _ = json.Marshal(event)
+				} else {
+					serialized, _ = json.MarshalIndent(event, " ", " ")
+				}
+
 				if *parse_output_file == nil {
 					fmt.Println(string(serialized))
 				} else {
