@@ -19,4 +19,4 @@ require (
 // replace www.velocidex.com/golang/go-pe => /home/mic/projects/go-pe/
 //replace github.com/Velocidex/ordereddict => /home/mic/projects/ordereddict
 
-go 1.13
+go 1.20
