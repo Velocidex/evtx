@@ -1,17 +1,17 @@
 /*
-   Copyright 2018 Velocidex Innovations
+Copyright 2018 Velocidex Innovations
 
-   Licensed under the Apache License, Version 2.0 (the "License");
-   you may not use this file except in compliance with the License.
-   You may obtain a copy of the License at
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
 
-       http://www.apache.org/licenses/LICENSE-2.0
+	http://www.apache.org/licenses/LICENSE-2.0
 
-   Unless required by applicable law or agreed to in writing, software
-   distributed under the License is distributed on an "AS IS" BASIS,
-   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   See the License for the specific language governing permissions and
-   limitations under the License.
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 */
 package evtx
 
@@ -39,6 +39,8 @@ const (
 
 	EVTX_EVENT_RECORD_MAGIC = "\x2a\x2a\x00\x00"
 	EVTX_EVENT_RECORD_SIZE  = 24
+
+	TemplateContext = true
 )
 
 type EvtxGUID struct {
@@ -84,7 +86,7 @@ type EventRecord struct {
 
 func (self *EventRecord) Parse(ctx *ParseContext) {
 	template := ctx.NewTemplate(0)
-	ParseBinXML(ctx)
+	ParseBinXML(ctx, !TemplateContext)
 
 	self.Event = template.Expand(nil)
 }
@@ -300,7 +302,7 @@ type ParseContext struct {
 	chunk *Chunk
 
 	// A lookup table of templates we already saw in this
-	// chunk. Further events in the chunk well reuse the same
+	// chunk. Further events in the chunk will reuse the same
 	// templates by id.
 	knownIDs map[int]*TemplateNode
 }
@@ -640,13 +642,21 @@ func ReadName(ctx *ParseContext) string {
 }
 
 // This is called when we open a new XML Tag. e.g. "<EventData".
-func ParseOpenStartElement(ctx *ParseContext, has_attr bool) bool {
+func ParseOpenStartElement(ctx *ParseContext,
+	has_attr bool, template_instance bool) bool {
+
 	debug("ParseOpenStartElement Enter: %x\n", ctx.Offset())
 	/*
 		dependencyID := ctx.ConsumeUint16()
 		elementLength := ctx.ConsumeUint32()
 	*/
-	ctx.SkipBytes(2 + 4)
+	// ctx.SkipBytes(2 + 4)
+
+	if template_instance {
+		ctx.SkipBytes(2)
+	}
+
+	ctx.SkipBytes(4)
 	nameBuffer := ReadName(ctx)
 
 	attributeListLength := uint32(0)
@@ -741,7 +751,7 @@ func ParseTemplateInstance(ctx *ParseContext) bool {
 
 		tmp_ctx := ctx.Copy()
 		template = tmp_ctx.NewTemplate(short_id)
-		ParseBinXML(tmp_ctx)
+		ParseBinXML(tmp_ctx, TemplateContext)
 
 		ctx.SkipBytes(templateBodyLen)
 		numArguments = ctx.ConsumeUint32()
@@ -839,7 +849,7 @@ func ParseTemplateInstance(ctx *ParseContext) bool {
 			arg_values[idx] = str
 		case 0x21: // BinXml
 			new_ctx := ctx.Copy()
-			ParseBinXML(new_ctx)
+			ParseBinXML(new_ctx, TemplateContext)
 			ctx.SkipBytes(arg.argLen)
 
 			arg_values[idx] = new_ctx.CurrentTemplate().Expand(nil)
@@ -900,7 +910,10 @@ func ParseOptionalSubstitution(ctx *ParseContext) bool {
 	return true
 }
 
-func ParseBinXML(ctx *ParseContext) {
+// When parsing the XML inside a template the elements has a slightly
+// different structure.
+// https://github.com/libyal/libevtx/blob/main/documentation/Windows%20XML%20Event%20Log%20(EVTX).asciidoc#414-element-start
+func ParseBinXML(ctx *ParseContext, template_context bool) {
 	debug("ParseBinXML\n")
 	keep_going := true
 
@@ -912,9 +925,9 @@ func ParseBinXML(ctx *ParseContext) {
 			keep_going = false
 
 		case 0x01 /* OpenStartElementToken */ :
-			keep_going = ParseOpenStartElement(ctx, false)
+			keep_going = ParseOpenStartElement(ctx, false, template_context)
 		case 0x41:
-			keep_going = ParseOpenStartElement(ctx, true)
+			keep_going = ParseOpenStartElement(ctx, true, template_context)
 		case 0x02: /* CloseStartElementToken */
 			keep_going = ParseCloseStartElement(ctx)
 		case 0x03 /*  CloseEmptyElementToken */, 0x04: /*  CloseElementToken */
