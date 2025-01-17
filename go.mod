@@ -5,14 +5,14 @@ require (
 	github.com/alecthomas/assert v1.0.0
 	github.com/davecgh/go-spew v1.1.1
 	github.com/hashicorp/golang-lru v1.0.2
-	github.com/mattn/go-sqlite3 v1.14.22
+	github.com/mattn/go-sqlite3 v1.14.24
 	github.com/pkg/errors v0.9.1
 	github.com/sebdah/goldie v1.0.0
 	github.com/stretchr/testify v1.9.0
-	golang.org/x/sys v0.22.0
+	golang.org/x/sys v0.29.0
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 	www.velocidex.com/golang/binparsergen v0.1.1-0.20240404114946-8f66c7cf586e
-	www.velocidex.com/golang/go-pe v0.1.1-0.20230228112150-ef2eadf34bc3
+	www.velocidex.com/golang/go-pe v0.1.1-0.20250101153735-7a925ba8334b
 )
 
 require (
@@ -26,7 +26,7 @@ require (
 	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/sergi/go-diff v1.2.0 // indirect
-	golang.org/x/text v0.16.0 // indirect
+	golang.org/x/text v0.21.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 

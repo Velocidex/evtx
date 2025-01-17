@@ -18,14 +18,14 @@ var (
 )
 
 type MessageResolver interface {
-	GetMessage(provider, channel string, event_id int) string
+	GetMessage(provider, channel string, event_id int, number_of_expansions int) string
 	GetParameter(provider, channel string, parameter_id int) string
 	Close()
 }
 
 type NullResolver struct{}
 
-func (self NullResolver) GetMessage(provider, channel string, event_id int) string {
+func (self NullResolver) GetMessage(provider, channel string, event_id, number_of_expansions int) string {
 	return ""
 }
 
@@ -37,6 +37,9 @@ func (self NullResolver) Close() {}
 
 func flatten(dict *ordereddict.Dict) []interface{} {
 	result := []interface{}{}
+	if dict == nil {
+		return result
+	}
 
 	for _, k := range dict.Keys() {
 		value, _ := dict.Get(k)
@@ -80,6 +83,13 @@ func maybeExpandObjects(provider, channel string,
 func ExpandMessage(
 	event *ordereddict.Dict, resolver MessageResolver) string {
 
+	// Now get and flatten the user data or event data
+	data, pres := ordereddict.GetMap(event, "UserData")
+	if !pres {
+		data, _ = ordereddict.GetMap(event, "EventData")
+	}
+	expansions := flatten(data)
+
 	provider, _ := ordereddict.GetString(event, "System.Provider.Name")
 	provider_guid, _ := ordereddict.GetString(event, "System.Provider.Guid")
 	channel, _ := ordereddict.GetString(event, "System.Channel")
@@ -87,9 +97,9 @@ func ExpandMessage(
 
 	// Get the raw message. First try using the GUID then using the
 	// name if possible.
-	message := resolver.GetMessage(provider_guid, channel, event_id)
+	message := resolver.GetMessage(provider_guid, channel, event_id, len(expansions))
 	if message == "" {
-		message = resolver.GetMessage(provider, channel, event_id)
+		message = resolver.GetMessage(provider, channel, event_id, len(expansions))
 		if message == "" {
 			// No raw message string, just return.
 			return message
@@ -98,16 +108,6 @@ func ExpandMessage(
 	} else {
 		provider = provider_guid
 	}
-
-	// Now get and flatten the user data or event data
-	data, pres := ordereddict.GetMap(event, "UserData")
-	if !pres {
-		data, pres = ordereddict.GetMap(event, "EventData")
-		if !pres {
-			return message
-		}
-	}
-	expansions := flatten(data)
 
 	// Replace expansions in the message with the user data.
 	return expansion_re.ReplaceAllStringFunc(message, func(match string) string {

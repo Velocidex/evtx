@@ -11,7 +11,7 @@ type DBResolver struct {
 
 // TODO: What is happening with the channel here?
 func (self *DBResolver) GetMessage(
-	provider, channel string, event_id int) string {
+	provider, channel string, event_id, number_of_expansions int) string {
 	rows, err := self.query.Query(provider, event_id)
 	if err != nil {
 		return ""

@@ -1,3 +1,4 @@
+//go:build windows
 // +build windows
 
 package evtx
@@ -5,6 +6,7 @@ package evtx
 import (
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	lru "github.com/hashicorp/golang-lru"
@@ -22,11 +24,21 @@ func NewWindowsMessageResolver() *WindowsMessageResolver {
 	return &WindowsMessageResolver{
 		// string->MessageSet
 		cache: cache,
+
+		// MUI files can be found in the SxS directory - we cache that
+		// periodically.
+		mui_cache: make(map[string][]string),
 	}
 }
 
 type WindowsMessageResolver struct {
 	cache *lru.Cache
+
+	mui_cache map[string][]string
+}
+
+func (self *WindowsMessageResolver) buildSxScache() {
+	self.mui_cache = make(map[string][]string)
 }
 
 func (self *WindowsMessageResolver) getMessageSets(
@@ -38,10 +50,10 @@ func (self *WindowsMessageResolver) getMessageSets(
 	message_set_any, pres := self.cache.Get(key)
 	if !pres {
 		var err error
-		message_set_any, err = GetMessagesByGUID(provider, channel)
+		message_set_any, err = self.GetMessagesByGUID(provider, channel)
 		if err != nil {
 			// Try to get the messages by provider name
-			message_set_any, err = GetMessages(provider, channel)
+			message_set_any, err = self.GetMessages(provider, channel)
 			if err != nil {
 				// Cache the failure by storing nil in the map
 				self.cache.Add(key, nil)
@@ -60,7 +72,7 @@ func (self *WindowsMessageResolver) getMessageSets(
 }
 
 func (self *WindowsMessageResolver) GetMessage(
-	provider, channel string, event_id int) string {
+	provider, channel string, event_id, number_of_expansions int) string {
 
 	message_set, err := self.getMessageSets(provider, channel)
 	if err != nil {
@@ -68,11 +80,7 @@ func (self *WindowsMessageResolver) GetMessage(
 	}
 
 	// Get the event if it is there
-	res, pres := message_set.Messages[event_id]
-	if pres {
-		return res.Message
-	}
-	return ""
+	return message_set.GetBestMessage(event_id, number_of_expansions)
 }
 
 func (self *WindowsMessageResolver) GetParameter(
@@ -87,21 +95,10 @@ func (self *WindowsMessageResolver) GetParameter(
 		return ""
 	}
 
-	res, pres := message_set.Parameters[parameter_id]
-	if pres {
-		return res.Message
-	}
-	return ""
+	return message_set.GetParameter(parameter_id)
 }
 
 func (self *WindowsMessageResolver) Close() {}
-
-type MessageSet struct {
-	Provider   string
-	Channel    string
-	Messages   map[int]*pe.Message
-	Parameters map[int]*pe.Message
-}
 
 // ExpandLocations Produces a list of possible locations the message
 // file may be. We process all of them because sometimes event
@@ -174,11 +171,16 @@ func ExpandLocations(message_file string) []string {
 	}
 
 	// Message file values may be separated by ;
-	return include_muis(split_system32(replace_env_vars(
+	res := include_muis(split_system32(replace_env_vars(
 		strings.Split(message_file, ";"))))
+	sort.Slice(res, func(i, j int) bool {
+		return len(res[i]) > len(res[j])
+	})
+	return res
 }
 
-func GetMessagesByGUID(provider_guid, channel string) (*MessageSet, error) {
+func (self *WindowsMessageResolver) GetMessagesByGUID(
+	provider_guid, channel string) (*MessageSet, error) {
 	key_path := `Software\Microsoft\Windows\CurrentVersion\WinEVT\Publishers\{` + provider_guid + "}"
 	provider_key, err := registry.OpenKey(registry.LOCAL_MACHINE, key_path,
 		registry.READ|registry.ENUMERATE_SUB_KEYS|registry.WOW64_64KEY)
@@ -211,19 +213,19 @@ func expandLocations(
 	result := &MessageSet{
 		Provider:   provider,
 		Channel:    channel,
-		Messages:   make(map[int]*pe.Message),
-		Parameters: make(map[int]*pe.Message),
+		Messages:   make(map[int]string),
+		Parameters: make(map[int]string),
 	}
 
-	populateMessages(message_files, result.Messages)
+	populateMessages(message_files, result.AddMessage)
 	if parameter_files != "" {
-		populateMessages(parameter_files, result.Parameters)
+		populateMessages(parameter_files, result.AddParameter)
 	}
 
 	return result, nil
 }
 
-func populateMessages(message_files string, set map[int]*pe.Message) {
+func populateMessages(message_files string, adder func(event_id int, message string)) {
 	for _, message_file := range ExpandLocations(message_files) {
 		fd, err := os.Open(message_file)
 		if err != nil {
@@ -248,12 +250,13 @@ func populateMessages(message_files string, set map[int]*pe.Message) {
 		}
 
 		for _, msg := range messages {
-			set[msg.EventId] = msg
+			adder(msg.EventId, msg.Message)
 		}
 	}
 }
 
-func GetMessages(provider, channel string) (*MessageSet, error) {
+func (self *WindowsMessageResolver) GetMessages(
+	provider, channel string) (*MessageSet, error) {
 	root_key, err := registry.OpenKey(registry.LOCAL_MACHINE,
 		`SYSTEM\CurrentControlSet\Services\EventLog`,
 		registry.READ|registry.ENUMERATE_SUB_KEYS|registry.WOW64_64KEY)
