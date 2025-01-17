@@ -986,7 +986,7 @@ func GetChunks(fd io.ReadSeeker) ([]*Chunk, error) {
 	for offset := int64(header.HeaderBlockSize); true; offset += EVTX_CHUNK_SIZE {
 		chunk, err := NewChunk(fd, offset)
 		if err != nil {
-			if errors.Cause(err) == io.EOF {
+			if errors.Is(err, io.EOF) || errors.Is(err, os.ErrNotExist) {
 				break
 			}
 			continue
