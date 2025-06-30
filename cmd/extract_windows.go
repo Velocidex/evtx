@@ -1,3 +1,4 @@
+//go:build windows
 // +build windows
 
 package main
@@ -160,7 +161,7 @@ func doExtract() {
 		}
 		defer fd.Close()
 
-		fmt.Printf("Openning message table file %v\n", message_table)
+		fmt.Printf("Opening message table file %v\n", message_table)
 
 		reader, err := reader.NewPagedReader(fd, 4096, 100)
 		if err != nil {
