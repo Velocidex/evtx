@@ -21,6 +21,9 @@ var (
 	parse_file_message_file = parse.Flag("messagedb", "Path to messages database.").
 				String()
 
+	parse_file_disable_message = parse.Flag("disable_messages", "Disable message resolver.").
+					Bool()
+
 	start_record_id   = parse.Flag("start", "First EventID to dump").Int()
 	number_of_records = parse.Flag("number", "How many records to print").
 				Default("99999999").Int()
@@ -78,6 +81,10 @@ func (self *parsingContext) Parse() {
 }
 
 func NewParsingContext() *parsingContext {
+	if *parse_file_disable_message {
+		return &parsingContext{evtx.NullResolver{}}
+	}
+
 	if *parse_file_message_file != "" {
 		resolver, err := evtx.NewDBResolver(*parse_file_message_file)
 		kingpin.FatalIfError(err, " %v", err)

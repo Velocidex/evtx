@@ -44,6 +44,22 @@ func (self *EVTXTestSuite) TestCollector() {
 	goldie.Assert(self.T(), fixture_name, out)
 }
 
+func (self *EVTXTestSuite) TestTemplates() {
+	cmdline := []string{
+		"parse", "testdata/Microsoft-Windows-CAPI2_Operational_EventID70.evtx",
+		"--disable_messages",
+	}
+	cmd := exec.Command(self.binary, cmdline...)
+	out, err := cmd.CombinedOutput()
+	assert.NoError(self.T(), err)
+
+	out = bytes.ReplaceAll(out, []byte{'\r', '\n'}, []byte{'\n'})
+	fixture_name := "CAPI2_Operational"
+	fmt.Printf("Testing fixture %v\n", fixture_name)
+
+	goldie.Assert(self.T(), fixture_name, out)
+}
+
 func TestEvtx(t *testing.T) {
 	suite.Run(t, &EVTXTestSuite{})
 }
