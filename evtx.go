@@ -113,6 +113,11 @@ type ChunkHeader struct {
 	FirstEventRecID     uint64
 	LastEventRecID      uint64
 	HeaderSize          uint32
+	LastEventRecOffset  uint32
+	_                   [4]byte
+	EventRecordCheckSum uint32
+	_                   [68]byte
+	CheckSum            uint32
 }
 
 type Chunk struct {
