@@ -39,6 +39,8 @@ const (
 
 	EVTX_EVENT_RECORD_MAGIC = "\x2a\x2a\x00\x00"
 	EVTX_EVENT_RECORD_SIZE  = 24
+
+	TemplateContext = true
 )
 
 type EvtxGUID struct {
@@ -65,6 +67,7 @@ type EVTXHeader struct {
 	MinorVersion    uint16
 	MajorVersion    uint16
 	HeaderBlockSize uint16
+	ChunkCount      uint16
 	_               [76]byte
 	FileFlags       uint32
 	CheckSum        uint32
@@ -84,7 +87,7 @@ type EventRecord struct {
 
 func (self *EventRecord) Parse(ctx *ParseContext) {
 	template := ctx.NewTemplate(0)
-	ParseBinXML(ctx)
+	ParseBinXML(ctx, !TemplateContext)
 
 	self.Event = template.Expand(nil)
 }
@@ -111,6 +114,11 @@ type ChunkHeader struct {
 	FirstEventRecID     uint64
 	LastEventRecID      uint64
 	HeaderSize          uint32
+	LastEventRecOffset  uint32
+	_                   [4]byte
+	EventRecordCheckSum uint32
+	_                   [68]byte
+	CheckSum            uint32
 }
 
 type Chunk struct {
@@ -300,7 +308,7 @@ type ParseContext struct {
 	chunk *Chunk
 
 	// A lookup table of templates we already saw in this
-	// chunk. Further events in the chunk well reuse the same
+	// chunk. Further events in the chunk will reuse the same
 	// templates by id.
 	knownIDs map[int]*TemplateNode
 }
@@ -617,6 +625,7 @@ func ReadPrefixedUnicodeString(ctx *ParseContext, is_null_terminated bool) strin
 	buffer := ctx.ConsumeBytes(count * 2)
 	result := UTF16LEToUTF8(buffer)
 	debug("ReadPrefixedUnicodeString exit: %x %s\n", ctx.Offset(), string(result))
+
 	return string(result)
 }
 
@@ -640,13 +649,22 @@ func ReadName(ctx *ParseContext) string {
 }
 
 // This is called when we open a new XML Tag. e.g. "<EventData".
-func ParseOpenStartElement(ctx *ParseContext, has_attr bool) bool {
+func ParseOpenStartElement(ctx *ParseContext,
+	has_attr bool, template_instance bool) bool {
+
 	debug("ParseOpenStartElement Enter: %x\n", ctx.Offset())
 	/*
 		dependencyID := ctx.ConsumeUint16()
-		elementLength := ctx.ConsumeUint32()
 	*/
-	ctx.SkipBytes(2 + 4)
+	// ctx.SkipBytes(2 + 4)
+
+	if template_instance {
+		ctx.SkipBytes(2)
+	}
+
+	elementLength := ctx.ConsumeUint32()
+	debug("ParseOpenStartElement elementLength: %x\n", elementLength)
+
 	nameBuffer := ReadName(ctx)
 
 	attributeListLength := uint32(0)
@@ -722,7 +740,8 @@ func ParseTemplateInstance(ctx *ParseContext) bool {
 	/*
 		tempResLen := ctx.ConsumeUint32()
 	*/
-	ctx.SkipBytes(4)
+	template_definition_data := int(ctx.ConsumeUint32())
+	debug("ParseTemplateInstance template_definition_data %x\n", template_definition_data)
 
 	// Template arguments should not be unreasonable here. Just cap
 	// them at a reasonable size.
@@ -735,13 +754,13 @@ func ParseTemplateInstance(ctx *ParseContext) bool {
 
 	template, pres := ctx.GetTemplateByID(short_id)
 	if !pres {
-		// longID := ctx.ConsumeBytes(16)
+		// longGUID := ctx.ConsumeBytes(16)
 		ctx.SkipBytes(16)
 		templateBodyLen := int(ctx.ConsumeUint32())
 
 		tmp_ctx := ctx.Copy()
 		template = tmp_ctx.NewTemplate(short_id)
-		ParseBinXML(tmp_ctx)
+		ParseBinXML(tmp_ctx, TemplateContext)
 
 		ctx.SkipBytes(templateBodyLen)
 		numArguments = ctx.ConsumeUint32()
@@ -837,9 +856,18 @@ func ParseTemplateInstance(ctx *ParseContext) bool {
 				str += fmt.Sprintf("-%d", ctx.ConsumeUint32())
 			}
 			arg_values[idx] = str
+
 		case 0x21: // BinXml
 			new_ctx := ctx.Copy()
-			ParseBinXML(new_ctx)
+
+			// Substitution args are not encoded in template context.
+			/*
+			 https://github.com/libyal/libevtx/blob/main/documentation/Windows%20XML%20Event%20Log%20(EVTX).asciidoc#token_types
+			 > According to [MS-EVEN6] the dependency identifier is not present
+			 > when the element start is used in a substitution token with value
+			 > type: Binary XML (0x21).
+			*/
+			ParseBinXML(new_ctx, !TemplateContext)
 			ctx.SkipBytes(arg.argLen)
 
 			arg_values[idx] = new_ctx.CurrentTemplate().Expand(nil)
@@ -900,7 +928,10 @@ func ParseOptionalSubstitution(ctx *ParseContext) bool {
 	return true
 }
 
-func ParseBinXML(ctx *ParseContext) {
+// When parsing the XML inside a template the elements has a slightly
+// different structure.
+// https://github.com/libyal/libevtx/blob/main/documentation/Windows%20XML%20Event%20Log%20(EVTX).asciidoc#414-element-start
+func ParseBinXML(ctx *ParseContext, template_context bool) {
 	debug("ParseBinXML\n")
 	keep_going := true
 
@@ -912,9 +943,9 @@ func ParseBinXML(ctx *ParseContext) {
 			keep_going = false
 
 		case 0x01 /* OpenStartElementToken */ :
-			keep_going = ParseOpenStartElement(ctx, false)
+			keep_going = ParseOpenStartElement(ctx, false, template_context)
 		case 0x41:
-			keep_going = ParseOpenStartElement(ctx, true)
+			keep_going = ParseOpenStartElement(ctx, true, template_context)
 		case 0x02: /* CloseStartElementToken */
 			keep_going = ParseCloseStartElement(ctx)
 		case 0x03 /*  CloseEmptyElementToken */, 0x04: /*  CloseElementToken */
@@ -930,6 +961,7 @@ func ParseBinXML(ctx *ParseContext) {
 		case 0x0B /*  PIDataToken */ :
 		case 0x0C /*  TemplateInstanceToken */ :
 			keep_going = ParseTemplateInstance(ctx)
+
 		case 0x0D /*  NormalSubstitutionToken */, 0x0E: /*  OptionalSubstitutionToken */
 			keep_going = ParseOptionalSubstitution(ctx)
 
@@ -973,7 +1005,7 @@ func GetChunks(fd io.ReadSeeker) ([]*Chunk, error) {
 	for offset := int64(header.HeaderBlockSize); true; offset += EVTX_CHUNK_SIZE {
 		chunk, err := NewChunk(fd, offset)
 		if err != nil {
-			if errors.Cause(err) == io.EOF {
+			if errors.Is(err, io.EOF) || errors.Is(err, os.ErrNotExist) {
 				break
 			}
 			continue

@@ -1,0 +1,56 @@
+{
+  "System": {
+   "Provider": {
+    "Name": "Microsoft-Windows-CAPI2",
+    "Guid": "{5bbca4a8-b209-48dc-a8c7-b23d3e5216fb}"
+   },
+   "EventID": {
+    "Value": 70
+   },
+   "Version": 0,
+   "Level": 4,
+   "Task": 70,
+   "Opcode": 0,
+   "Keywords": 4611686018427388032,
+   "TimeCreated": {
+    "SystemTime": 1751191789.1541903
+   },
+   "EventRecordID": 707,
+   "Correlation": {
+    "ActivityID": "0E2A62B5-0688-42DE-9AE1-A2AD54A8CE40"
+   },
+   "Execution": {
+    "ProcessID": 23708,
+    "ThreadID": 17980
+   },
+   "Channel": "Microsoft-Windows-CAPI2/Operational",
+   "Computer": "ILDHBZJST3",
+   "Security": {
+    "UserID": "S-1-5-21-1332095402-2705258134-1427695613-1001"
+   }
+  },
+  "UserData": {
+   "CryptAcquireCertificatePrivateKey": {
+    "Certificate": {
+     "fileRef": "3AA55F503B946700761B3990B569E6F248C3D31D.cer",
+     "subjectName": "5ae3f7e8-6eef-4e9e-8fc9-94f5d0c0862b"
+    },
+    "Flags": {
+     "value": "10040",
+     "CRYPT_ACQUIRE_SILENT_FLAG": "true",
+     "CRYPT_ACQUIRE_ALLOW_NCRYPT_KEY_FLAG": "true"
+    },
+    "EventAuxInfo": {
+     "ProcessName": "RuntimeBroker.exe"
+    },
+    "CorrelationAuxInfo": {
+     "TaskId": "{59A34F27-7A62-4C7D-9DE1-9E1F0E2382D5}",
+     "SeqNumber": "2"
+    },
+    "Result": {
+     "value": "0"
+    }
+   }
+  },
+  "Message": ""
+ }
