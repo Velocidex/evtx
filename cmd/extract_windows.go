@@ -10,9 +10,9 @@ import (
 	"os"
 	"strings"
 
+	kingpin "github.com/alecthomas/kingpin/v2"
 	_ "github.com/mattn/go-sqlite3"
 	"golang.org/x/sys/windows/registry"
-	kingpin "gopkg.in/alecthomas/kingpin.v2"
 	"www.velocidex.com/golang/binparsergen/reader"
 	"www.velocidex.com/golang/evtx"
 	pe "www.velocidex.com/golang/go-pe"
@@ -28,6 +28,7 @@ var (
 // with potential message files. The message_table paths are not
 // guaranteed to exists.
 func walkProvider(cb func(provider string, message_table string) error) error {
+	resolver := evtx.NewWindowsMessageResolver()
 	channels_key, err := registry.OpenKey(registry.LOCAL_MACHINE,
 		`SYSTEM\CurrentControlSet\Services\EventLog`,
 		registry.READ|registry.ENUMERATE_SUB_KEYS|registry.WOW64_64KEY)
@@ -67,7 +68,8 @@ func walkProvider(cb func(provider string, message_table string) error) error {
 				continue
 			}
 
-			for _, message_file := range evtx.ExpandLocations(message_files) {
+			for _, message_file := range resolver.ExpandLocations(
+				message_files) {
 				err = cb(provider_name, message_file)
 				if err != nil {
 					fmt.Printf("While processing %v (%v): %v\n",

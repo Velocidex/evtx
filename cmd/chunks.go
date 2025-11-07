@@ -3,8 +3,8 @@ package main
 import (
 	"os"
 
+	kingpin "github.com/alecthomas/kingpin/v2"
 	"github.com/davecgh/go-spew/spew"
-	kingpin "gopkg.in/alecthomas/kingpin.v2"
 	"www.velocidex.com/golang/evtx"
 )
 

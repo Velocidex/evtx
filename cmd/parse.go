@@ -6,7 +6,7 @@ import (
 	"os"
 
 	"github.com/Velocidex/ordereddict"
-	kingpin "gopkg.in/alecthomas/kingpin.v2"
+	kingpin "github.com/alecthomas/kingpin/v2"
 	"www.velocidex.com/golang/evtx"
 )
 

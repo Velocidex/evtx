@@ -4,8 +4,8 @@ import (
 	"database/sql"
 	"fmt"
 
+	kingpin "github.com/alecthomas/kingpin/v2"
 	_ "github.com/mattn/go-sqlite3"
-	kingpin "gopkg.in/alecthomas/kingpin.v2"
 )
 
 var (

@@ -1,8 +1,10 @@
 package evtx
 
 import (
+	"fmt"
 	"regexp"
 	"strconv"
+	"strings"
 	"sync"
 )
 
@@ -16,19 +18,51 @@ type MessageSet struct {
 	Channel    string
 	Messages   map[int]string
 	Parameters map[int]string
+	Filenames  map[string]int
 }
 
-func (self *MessageSet) AddMessage(event_id int, message string) {
+func (self *MessageSet) Debug() string {
 	self.mu.Lock()
 	defer self.mu.Unlock()
 
+	res := ""
+	for k, msg := range self.Messages {
+		res += fmt.Sprintf("   %#x %v\n", k, strings.TrimSpace(msg))
+	}
+
+	return fmt.Sprintf("Provider: %v, Channel %v, Messages %v, Filenames %v:\n%v",
+		self.Provider, self.Channel, len(self.Messages), self.Filenames, res)
+}
+
+func (self *MessageSet) AddMessage(
+	event_id int, message, filename string) {
+
+	if len(message) == 0 {
+		return
+	}
+
+	self.mu.Lock()
+	defer self.mu.Unlock()
+
+	// Sometimes we get several versions of the same message for the
+	// same event id but different parameters. For example say EventID
+	// X has 2 parameters sometimes, and 3 parameters some other
+	// times. We need to be able to resolve the correct version of the
+	// message depending on the number of parameters present.
+
+	// To do this quickly, we shift the event id 16 bits to the left
+	// and include the largest expansion in the bottom 16 bits. This
+	// allows us to store different versions of messages for the same
+	// event id, and also retrieve the correct message depending on
+	// how the event is generated.
 	number_of_expansions := self.getLargestExpansion(message)
 	key := event_id<<16 | number_of_expansions
 
 	self.Messages[key] = message
+	self.Filenames[filename] = 1
 }
 
-func (self *MessageSet) AddParameter(event_id int, message string) {
+func (self *MessageSet) AddParameter(event_id int, message, filename string) {
 	self.mu.Lock()
 	defer self.mu.Unlock()
 
@@ -68,7 +102,11 @@ func (self *MessageSet) GetBestMessage(
 	self.mu.Lock()
 	defer self.mu.Unlock()
 
-	for i := number_of_expansions; i > 0; i-- {
+	// Ideally we have the message which interpolates the most number
+	// of expansions, but sometimes this is missing so we may have to
+	// make do with a message that interpolates less
+	// elements. Hopefully they are kind of related?
+	for i := number_of_expansions; i >= 0; i-- {
 		key := event_id<<16 | i
 		res, pres := self.Messages[key]
 		if pres {
