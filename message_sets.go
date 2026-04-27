@@ -58,6 +58,14 @@ func (self *MessageSet) AddMessage(
 	number_of_expansions := self.getLargestExpansion(message)
 	key := event_id<<16 | number_of_expansions
 
+	// Only add the message if we do not already have it. This means
+	// messages n files earlies in the search sequence will be found
+	// instead of files later.
+	_, pres := self.Messages[key]
+	if pres {
+		return
+	}
+
 	self.Messages[key] = message
 	self.Filenames[filename] = 1
 }

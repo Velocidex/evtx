@@ -24,10 +24,16 @@ var (
 	mui_debug = 0
 )
 
-func NewWindowsMessageResolver() *WindowsMessageResolver {
-	cache, err := lru.New(100)
+func NewWindowsMessageResolver(
+	opts MessageResolverOpts) (*WindowsMessageResolver, error) {
+	lru_size := opts.LRUSize
+	if lru_size <= 0 {
+		lru_size = 100
+	}
+
+	cache, err := lru.New(lru_size)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	res := &WindowsMessageResolver{
 		// string->MessageSet
@@ -41,7 +47,7 @@ func NewWindowsMessageResolver() *WindowsMessageResolver {
 
 	res.buildMUIcache()
 
-	return res
+	return res, res.sortMRUWithRegexp(opts.LangPreferenceRegeExp)
 }
 
 type WindowsMessageResolver struct {

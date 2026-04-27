@@ -1,7 +1,8 @@
+//go:build windows
 // +build windows
 
 package evtx
 
-func GetNativeResolver() (MessageResolver, error) {
-	return NewWindowsMessageResolver(), nil
+func GetNativeResolver(opts MessageResolverOpts) (MessageResolver, error) {
+	return NewWindowsMessageResolver(opts)
 }

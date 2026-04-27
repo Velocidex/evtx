@@ -29,6 +29,9 @@ var (
 				Default("99999999").Int()
 
 	event_id_filter = parse.Flag("event_id", "Only show these event IDs").Int()
+
+	// https://learn.microsoft.com/en-us/windows-hardware/manufacture/desktop/available-language-packs-for-windows
+	parse_lang = parse.Flag("lang", "A preferred language for messages (e.g. ja-jp (default is en-US ) )").String()
 )
 
 type parsingContext struct {
@@ -92,7 +95,9 @@ func NewParsingContext() *parsingContext {
 	}
 
 	// Otherwise use the native resolver
-	resolver, err := evtx.GetNativeResolver()
+	resolver, err := evtx.GetNativeResolver(evtx.MessageResolverOpts{
+		LangPreferenceRegeExp: *parse_lang,
+	})
 	kingpin.FatalIfError(err, " %v", err)
 
 	return &parsingContext{resolver}

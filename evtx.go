@@ -18,6 +18,7 @@ package evtx
 import (
 	"bytes"
 	"encoding/binary"
+	"math"
 	"strings"
 	"time"
 
@@ -364,7 +365,7 @@ func NewParseContext(chunk *Chunk) *ParseContext {
 }
 
 func (self *ParseContext) ConsumeUint8() uint8 {
-	if len(self.buff) < self.offset+1 {
+	if self.offset > len(self.buff) {
 		return 0
 	}
 	result := self.buff[self.offset]
@@ -373,31 +374,34 @@ func (self *ParseContext) ConsumeUint8() uint8 {
 }
 
 func (self *ParseContext) ConsumeUint16() uint16 {
-	if len(self.buff) < self.offset+2 {
+	if self.offset+2 > len(self.buff) {
 		return 0
 	}
 
-	result := binary.LittleEndian.Uint16(self.buff[self.offset:])
+	result := binary.LittleEndian.Uint16(
+		self.buff[self.offset : self.offset+2])
 	self.offset += 2
 	return result
 }
 
 func (self *ParseContext) ConsumeUint32() uint32 {
-	if len(self.buff) < self.offset+4 {
+	if self.offset+4 > len(self.buff) {
 		return 0
 	}
 
-	result := binary.LittleEndian.Uint32(self.buff[self.offset:])
+	result := binary.LittleEndian.Uint32(
+		self.buff[self.offset : self.offset+4])
 	self.offset += 4
 	return result
 }
 
 func (self *ParseContext) ConsumeUint64() uint64 {
-	if len(self.buff) < self.offset+8 {
+	if self.offset+8 > len(self.buff) {
 		return 0
 	}
 
-	result := binary.LittleEndian.Uint64(self.buff[self.offset:])
+	result := binary.LittleEndian.Uint64(
+		self.buff[self.offset : self.offset+8])
 	self.offset += 8
 	return result
 }
@@ -413,70 +417,56 @@ func (self *ParseContext) ConsumeBytes(size int) []byte {
 }
 
 func (self *ParseContext) ConsumeInt64() (ret int64) {
-
-	if len(self.buff) < self.offset+8 {
+	if self.offset+8 > len(self.buff) {
 		return 0
 	}
 
-	buf := bytes.NewReader(self.buff[self.offset:])
-	err := binary.Read(buf, binary.LittleEndian, &ret)
-	if err != nil {
-		return 0
-	}
+	ret = int64(binary.LittleEndian.Uint64(
+		self.buff[self.offset : self.offset+8]))
 	self.offset += 8
-	return
+	return ret
 
 }
 
 func (self *ParseContext) ConsumeInt32() (ret int32) {
 
-	if len(self.buff) < self.offset+4 {
+	if self.offset+4 > len(self.buff) {
 		return 0
 	}
 
-	buf := bytes.NewReader(self.buff[self.offset:])
-	err := binary.Read(buf, binary.LittleEndian, &ret)
-	if err != nil {
-		return 0
-	}
+	ret = int32(binary.LittleEndian.Uint32(
+		self.buff[self.offset : self.offset+4]))
 	self.offset += 4
-	return
-
+	return ret
 }
 
 func (self *ParseContext) ConsumeReal32() (ret float32) {
 
-	if len(self.buff) < self.offset+4 {
+	if self.offset+4 > len(self.buff) {
 		return 0
 	}
-
-	buf := bytes.NewReader(self.buff[self.offset:])
-	err := binary.Read(buf, binary.LittleEndian, &ret)
-	if err != nil {
-		return 0
-	}
+	ret = math.Float32frombits(
+		binary.LittleEndian.Uint32(self.buff[self.offset : self.offset+4]))
 	self.offset += 4
-	return
+	return ret
 }
 
 func (self *ParseContext) ConsumeReal64() (ret float64) {
 
-	if len(self.buff) < self.offset+8 {
+	if self.offset+8 > len(self.buff) {
 		return 0
 	}
 
-	buf := bytes.NewReader(self.buff[self.offset:])
-	err := binary.Read(buf, binary.LittleEndian, &ret)
-	if err != nil {
-		return 0
-	}
+	ret = math.Float64frombits(
+		binary.LittleEndian.Uint64(self.buff[self.offset : self.offset+8]))
+
 	self.offset += 8
-	return
+	return ret
 }
 
 func (self *ParseContext) ConsumeSysTime(size int) string {
 
-	if len(self.buff) < self.offset+16 {
+	if self.offset+16 > len(self.buff) {
 		return "SysTimeParsingError"
 	}
 
@@ -491,81 +481,52 @@ func (self *ParseContext) ConsumeSysTime(size int) string {
 	sec := binary.LittleEndian.Uint16(buffer[12:14])
 	msec := binary.LittleEndian.Uint16(buffer[14:16])
 
-	result := time.Date(int(year), time.Month(month), int(day), int(hour), int(min), int(sec), int(msec), time.UTC)
+	result := time.Date(int(year), time.Month(month),
+		int(day), int(hour), int(min), int(sec), int(msec), time.UTC)
 	return result.String()
 }
 
 func (self *ParseContext) ConsumeUnit16Array(size int) []uint16 {
-
 	uint16array := []uint16{}
-	if self.offset+size >= len(self.buff) {
-		size = len(self.buff) - self.offset - 1
-	}
-	if self.offset > len(self.buff) {
-		return nil
-	}
 
-	buffer := self.buff[self.offset : self.offset+size]
-	self.offset += size
-
-	index := 0
-	for index < len(buffer) {
-		value := binary.LittleEndian.Uint16((buffer[index:]))
+	index := self.offset
+	for index+2 < len(self.buff) {
+		value := binary.LittleEndian.Uint16((self.buff[index : index+2]))
 		uint16array = append(uint16array, value)
 		index += 2
-
 	}
+
+	// Still advance the offset as required to maintain alignment.
+	self.offset += size
 
 	return uint16array
 }
 
 func (self *ParseContext) ConsumeUnit64Array(size int) []uint64 {
-
 	uint64array := []uint64{}
-	if self.offset+size >= len(self.buff) {
-		size = len(self.buff) - self.offset - 1
-	}
-	if self.offset > len(self.buff) {
-		return nil
-	}
-
-	buffer := self.buff[self.offset : self.offset+size]
-	self.offset += size
-
-	index := 0
-	for index < len(buffer) {
-		value := binary.LittleEndian.Uint64((buffer[index:]))
+	index := self.offset
+	for index+8 < len(self.buff) {
+		value := binary.LittleEndian.Uint64((self.buff[index : index+8]))
 		uint64array = append(uint64array, value)
 		index += 8
-
 	}
+
+	self.offset += size
+
 	return uint64array
 }
 
 func (self *ParseContext) ConsumeInt64hexArray(size int) []string {
-	if self.offset+size >= len(self.buff) {
-		size = len(self.buff) - self.offset - 1
-	}
-
-	if self.offset > len(self.buff) {
-		return nil
-	}
-
-	buffer := self.buff[self.offset : self.offset+size]
-	self.offset += size
 	result := []string{}
 
-	for i := 0; i < len(buffer); i = i + 8 {
-
-		var ret int64
-		buf := bytes.NewReader(buffer[i : i+8])
-		err := binary.Read(buf, binary.LittleEndian, &ret)
-		if err != nil {
-			return result
-		}
-		result = append(result, "0x"+fmt.Sprintf("%x", ret))
-
+	index := self.offset
+	for index+8 < len(self.buff) {
+		value := binary.LittleEndian.Uint64((self.buff[index : index+8]))
+		result = append(result, "0x"+fmt.Sprintf("%x", value))
+		index += 8
 	}
+	self.offset += size
+
 	return result
 }
 

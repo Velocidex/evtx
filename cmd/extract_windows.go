@@ -22,13 +22,23 @@ var (
 	extract      = app.Command("extract", "Extract all log messages from all providers.")
 	extract_file = extract.Arg("file", "File to write all messages").Required().
 			String()
+
+	// https://learn.microsoft.com/en-us/windows-hardware/manufacture/desktop/available-language-packs-for-windows
+	extract_lang = extract.Flag("lang", "A preferred language for messages (e.g. jp)").String()
 )
 
 // Walk over all the providers in the registry and call the callback
 // with potential message files. The message_table paths are not
 // guaranteed to exists.
 func walkProvider(cb func(provider string, message_table string) error) error {
-	resolver := evtx.NewWindowsMessageResolver()
+	resolver, err := evtx.NewWindowsMessageResolver(
+		evtx.MessageResolverOpts{
+			LangPreferenceRegeExp: *extract_lang,
+		})
+	if err != nil {
+		return err
+	}
+
 	channels_key, err := registry.OpenKey(registry.LOCAL_MACHINE,
 		`SYSTEM\CurrentControlSet\Services\EventLog`,
 		registry.READ|registry.ENUMERATE_SUB_KEYS|registry.WOW64_64KEY)
