@@ -56,6 +56,8 @@ type WindowsMessageResolver struct {
 	mui_cache        map[string][]string
 	checked_mui_dirs map[string]bool
 
+	lang_filter_re *regexp.Regexp
+
 	location_expander func([]string) []string
 }
 
@@ -187,7 +189,10 @@ func (self *WindowsMessageResolver) buildMUIcache() {
 
 			muis, pres := self.mui_cache[dll_name]
 			if pres {
-				result = append(result, muis...)
+				// MUI files discovered after the constructor are in
+				// directory order - resort so the preferred language
+				// is found first.
+				result = append(result, self.sortListWithPreference(muis)...)
 			}
 		}
 		return result
