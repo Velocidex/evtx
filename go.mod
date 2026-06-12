@@ -10,7 +10,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/sebdah/goldie v1.0.0
 	github.com/stretchr/testify v1.9.0
-	golang.org/x/sys v0.37.0
+	golang.org/x/sys v0.46.0
 	www.velocidex.com/golang/binparsergen v0.1.1-0.20240404114946-8f66c7cf586e
 	www.velocidex.com/golang/go-pe v0.1.1-0.20251107001057-f93001158cd9
 )
@@ -26,11 +26,11 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/sergi/go-diff v1.4.0 // indirect
 	github.com/xhit/go-str2duration/v2 v2.1.0 // indirect
-	golang.org/x/text v0.30.0 // indirect
+	golang.org/x/text v0.38.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
 // replace www.velocidex.com/golang/go-pe => /home/mic/projects/go-pe/
 // replace github.com/Velocidex/ordereddict => /home/mic/projects/ordereddict
 
-go 1.24.0
+go 1.25.0

@@ -9,12 +9,8 @@ import (
 )
 
 var (
-	expansion_re    = regexp.MustCompile(`\%[0-9ntr]+`)
-	parameter_re    = regexp.MustCompile(`^\%\%([0-9]+)`)
-	system_root_re  = regexp.MustCompile("(?i)%?SystemRoot%?")
-	windir_re       = regexp.MustCompile("(?i)%windir%")
-	programfiles_re = regexp.MustCompile("(?i)%programfiles%")
-	system32_re     = regexp.MustCompile(`(?i)\\System32\\`)
+	expansion_re = regexp.MustCompile(`\%[0-9ntr]+`)
+	parameter_re = regexp.MustCompile(`^\%\%([0-9]+)`)
 )
 
 type MessageResolver interface {

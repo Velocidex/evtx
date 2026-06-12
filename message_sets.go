@@ -81,8 +81,7 @@ func (self *MessageSet) GetParameter(id int) string {
 	self.mu.Lock()
 	defer self.mu.Unlock()
 
-	res, _ := self.Parameters[id]
-	return res
+	return self.Parameters[id]
 }
 
 // Calculates the largest expansion number from the message string.

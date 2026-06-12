@@ -300,9 +300,6 @@ type ParseContext struct {
 	// XML Attributes are written to this template.
 	stack []*TemplateNode
 
-	// Remember the attribute we are currently parsing.
-	current_keys []string
-
 	attribute_mode bool
 
 	// A
