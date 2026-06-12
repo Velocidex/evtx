@@ -59,7 +59,7 @@ func TestExpandLocationsPrefersLanguageForLazyMUIDirs(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	locations := resolver.ExpandLocations(dll)
+	locations := resolver.ExpandMessageFileLocation(dll)
 
 	var muis []string
 	for _, location := range locations {

@@ -78,7 +78,7 @@ func walkProvider(cb func(provider string, message_table string) error) error {
 				continue
 			}
 
-			for _, message_file := range resolver.ExpandLocations(
+			for _, message_file := range resolver.ExpandMessageFileLocation(
 				message_files) {
 				err = cb(provider_name, message_file)
 				if err != nil {
