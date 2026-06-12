@@ -21,8 +21,13 @@ import (
 var (
 	// Search for potential MUI files - these are typically found in
 	// directories names like " en-US cz-CZ
-	mui_dir_regex = regexp.MustCompile("^[a-z]{2}-[a-z]{2}$")
-	invalidGUID   = errors.New("invalidGUID")
+	mui_dir_regex   = regexp.MustCompile("^[a-z]{2}-[a-z]{2}$")
+	system_root_re  = regexp.MustCompile("(?i)%?SystemRoot%?")
+	windir_re       = regexp.MustCompile("(?i)%windir%")
+	programfiles_re = regexp.MustCompile("(?i)%programfiles%")
+	system32_re     = regexp.MustCompile(`(?i)\\System32\\`)
+
+	invalidGUID = errors.New("invalidGUID")
 
 	mui_debug = 0
 )
