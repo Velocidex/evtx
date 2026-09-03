@@ -513,13 +513,13 @@ func (self *ParseContext) ConsumeUnit64Array(size int) []uint64 {
 	return uint64array
 }
 
-func (self *ParseContext) ConsumeInt64hexArray(size int) []string {
-	result := []string{}
+func (self *ParseContext) ConsumeInt64hexArray(size int) []HexInt {
+	var result []HexInt
 
 	index := self.offset
 	for index+8 < len(self.buff) {
 		value := binary.LittleEndian.Uint64((self.buff[index : index+8]))
-		result = append(result, "0x"+fmt.Sprintf("%x", value))
+		result = append(result, HexInt(value))
 		index += 8
 	}
 	self.offset += size
@@ -784,14 +784,10 @@ func ParseTemplateInstance(ctx *ParseContext) bool {
 				&guid)
 			arg_values[idx] = guid.ToString()
 
-			// We can always format this into hex if we
-			// need to. It is better to keep it as an int.
 		case 0x14: // HexInt32
-			// arg_values[idx] = fmt.Sprintf("%x", ctx.ConsumeUint32())
-			arg_values[idx] = ctx.ConsumeUint32()
+			arg_values[idx] = HexInt(ctx.ConsumeUint32())
 		case 0x15: // HexInt64
-			// arg_values[idx] = fmt.Sprintf("%x", ctx.ConsumeUint64())
-			arg_values[idx] = ctx.ConsumeUint64()
+			arg_values[idx] = HexInt(ctx.ConsumeUint64())
 
 		case 0x11: // FileTime - format as seconds since epoch.
 			arg_values[idx] = filetimeToUnixtime(ctx.ConsumeUint64())
