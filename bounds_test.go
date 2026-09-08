@@ -48,6 +48,38 @@ func TestConsumeUint8AtBufferBoundary(t *testing.T) {
 	}
 }
 
+// TestConsumeBytesOutOfBounds checks that ConsumeBytes returns nil, rather
+// than allocating a stream-chosen size, when the requested size overruns the
+// buffer. size is read straight from the stream at several call sites (e.g.
+// an argument length), so allocating make([]byte, size) on that path lets a
+// malformed record drive an attacker-chosen allocation instead of simply
+// failing the read, as every other Consume* method already does by
+// returning its zero value.
+func TestConsumeBytesOutOfBounds(t *testing.T) {
+	cases := []struct {
+		name string
+		buff []byte
+		size int
+	}{
+		{name: "size exceeds remaining buffer", buff: make([]byte, 4), size: 5},
+		{name: "size exceeds empty buffer", buff: nil, size: 1024 * 1024 * 1024},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			chunk := &Chunk{}
+			ctx := NewParseContext(chunk)
+			ctx.buff = c.buff
+
+			got := ctx.ConsumeBytes(c.size)
+
+			if got != nil {
+				t.Errorf("ConsumeBytes(%d) = %v (len %d), want nil", c.size, got, len(got))
+			}
+		})
+	}
+}
+
 // buildForgedTemplateInstance returns the bytes ParseTemplateInstance reads
 // for a template instance whose short_id has never been seen before (the
 // !pres branch), with the second, template-body numArguments read forged to

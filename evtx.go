@@ -412,7 +412,7 @@ func (self *ParseContext) ConsumeUint64() uint64 {
 
 func (self *ParseContext) ConsumeBytes(size int) []byte {
 	if self.offset+size > len(self.buff) {
-		return make([]byte, size)
+		return nil
 	}
 
 	result := self.buff[self.offset : self.offset+size]
