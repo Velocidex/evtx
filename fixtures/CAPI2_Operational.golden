@@ -11,7 +11,7 @@
    "Level": 4,
    "Task": 70,
    "Opcode": 0,
-   "Keywords": 4611686018427388032,
+   "Keywords": "0x4000000000000080",
    "TimeCreated": {
     "SystemTime": 1751191789.1541903
    },
