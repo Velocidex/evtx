@@ -470,11 +470,11 @@ func (self *ParseContext) ConsumeReal64() (ret float64) {
 
 func (self *ParseContext) ConsumeSysTime(size int) string {
 
-	if self.offset+16 > len(self.buff) {
+	if self.offset+16 > len(self.buff) || size < 16 {
 		return "SysTimeParsingError"
 	}
 
-	buffer := self.buff[self.offset : self.offset+size]
+	buffer := self.buff[self.offset : self.offset+16]
 	self.offset += size
 
 	year := binary.LittleEndian.Uint16(buffer[0:2])
